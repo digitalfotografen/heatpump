@@ -7,6 +7,7 @@ implemented, so ``--help`` already shows the whole surface. Only ``run`` and
 
 import asyncio
 import json
+import sqlite3
 from contextlib import closing
 from datetime import UTC, datetime, time, timedelta
 from pathlib import Path
@@ -18,7 +19,7 @@ from pydantic import ValidationError
 from rich.console import Console
 from rich.table import Table
 
-from heatpump import db, prices
+from heatpump import budget, db, planner, prices
 from heatpump.config import (
     ConfigError,
     MissingSecretError,
@@ -27,7 +28,7 @@ from heatpump.config import (
     tibber_token,
 )
 from heatpump.logging_setup import setup_logging
-from heatpump.models import Quarter
+from heatpump.models import Plan, Quarter
 
 app = typer.Typer(
     name="heatpump",
@@ -296,16 +297,67 @@ def _prices_table(title: str, quarters: list[Quarter], zone: ZoneInfo) -> Table:
     return table
 
 
+PLAN_LOOKAHEAD = timedelta(hours=48)  # Tibber publishes today and tomorrow at most
+
+
 @plan_app.command("show")
-def plan_show() -> None:
+def plan_show(ctx: typer.Context) -> None:
     """Show the stored plan."""
-    not_implemented(4)
+    settings = load_settings_or_exit(ctx)
+    with closing(_open_read_only(settings)) as connection:
+        plan = db.latest_plan(connection)
+    if plan is None:
+        typer.echo("No plan stored yet; try `heatpump plan now`.", err=True)
+        raise typer.Exit(code=1)
+    _print_plan(plan, ZoneInfo(settings.location.timezone))
 
 
 @plan_app.command("now")
-def plan_now() -> None:
+def plan_now(ctx: typer.Context) -> None:
     """Run the planner on current data and print the result without storing it."""
-    not_implemented(4)
+    settings = load_settings_or_exit(ctx)
+    now = datetime.now(UTC)
+    first_slot = planner.floor_to_quarter(now)
+    with closing(_open_read_only(settings)) as connection:
+        found = db.prices_for_range(connection, first_slot, first_slot + PLAN_LOOKAHEAD)
+        history = db.pause_events_since(connection, now - budget.WINDOW)
+    if not found.quarters:
+        typer.echo("No prices stored from now on; run `heatpump prices fetch`.", err=True)
+        raise typer.Exit(code=1)
+    try:
+        plan = planner.plan_pauses(found.quarters, history, now, settings.price_pause)
+    except ValueError as error:
+        typer.echo(f"Cannot plan: {error}", err=True)
+        raise typer.Exit(code=1) from error
+    _print_plan(plan, ZoneInfo(settings.location.timezone))
+
+
+def _open_read_only(settings: Settings) -> sqlite3.Connection:
+    """Open the configured database for reading, exiting with code 1 if it does not exist."""
+    try:
+        return db.connect(settings.database.path, read_only=True)
+    except FileNotFoundError as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(code=1) from error
+
+
+def _print_plan(plan: Plan, zone: ZoneInfo) -> None:
+    console = Console()
+    console.print(
+        f"Plan made {_local(plan.created_at, zone)} ({plan.reason}), "
+        f"horizon {_local(plan.horizon_start, zone)} to {_local(plan.horizon_end, zone)}"
+    )
+    console.print(f"Expected saving: {plan.expected_saving_sek:.2f} SEK")
+    if not plan.pauses:
+        console.print("No price pauses in this plan.")
+        return
+    table = Table(title="Price pauses")
+    table.add_column("Start (local)")
+    table.add_column("End (local)")
+    table.add_column("Minutes", justify="right")
+    for pause in plan.pauses:
+        table.add_row(_local(pause.start, zone), _local(pause.end, zone), f"{pause.minutes:.0f}")
+    console.print(table)
 
 
 @relay_app.command("status")

@@ -29,7 +29,7 @@ def plan_day(
     settings: PricePauseSettings = SETTINGS,
 ) -> list[Pause]:
     start = planner.floor_to_quarter(now)
-    return planner.plan_pauses(quarters_from(start, prices), list(history), now, settings)
+    return planner.plan_pauses(quarters_from(start, prices), list(history), now, settings).pauses
 
 
 def price_event(start: datetime, minutes: int) -> PauseEvent:
@@ -191,7 +191,7 @@ def test_a_spent_budget_with_a_short_horizon_gives_no_pauses() -> None:
         price_event(now - timedelta(hours=10), 180),
         price_event(now - timedelta(hours=5), 180),
     ]
-    assert plan_day([1.0 + (i % 7) for i in range(40)], history, now) == []
+    assert plan_day([1.0 + (i % 7) for i in range(40)], history, now) == ()
 
 
 def test_old_pauses_leave_the_rolling_window() -> None:
@@ -219,6 +219,7 @@ def test_recovery_after_a_recent_pause_blocks_the_next_quarters() -> None:
     history = [price_event(now - timedelta(minutes=130), 120)]  # ended 10 min ago, recovery 60 min
     prices = flat_day(1.0)
     prices[0:4] = [9.0] * 4  # the most expensive quarters are inside the recovery window
+    prices[10:14] = [3.0] * 4  # a smaller peak after it
     pauses = plan_day(prices, history, now)
     assert pauses
     assert min(p.start for p in pauses) >= now + timedelta(minutes=60)
@@ -234,7 +235,7 @@ def test_a_stove_pause_in_history_does_not_use_price_budget_or_recovery() -> Non
         planned_end=now - timedelta(minutes=5),
         ended_at=now - timedelta(minutes=5),
     )
-    prices = [9.0] * 4 + [1.0] * 92
+    prices = [9.0] * 2 + [1.0] * 94
     pauses = plan_day(prices, [stove], now)
     assert pauses[0].start == planner.floor_to_quarter(now)
 
@@ -261,17 +262,17 @@ def test_quarters_before_now_are_ignored() -> None:
     now = DAY_START + timedelta(hours=1)
     prices = [9.0] * 4 + [1.0] * 92  # the expensive hour is already over
     quarters = quarters_from(DAY_START, prices)
-    pauses = planner.plan_pauses(quarters, [], now, SETTINGS)
+    pauses = planner.plan_pauses(quarters, [], now, SETTINGS).pauses
     assert all(p.start >= now for p in pauses)
 
 
 def test_no_quarters_gives_no_pauses() -> None:
-    assert planner.plan_pauses([], [], DAY_START, SETTINGS) == []
+    assert planner.plan_pauses([], [], DAY_START, SETTINGS).pauses == ()
 
 
 def test_zero_budget_gives_no_pauses() -> None:
     settings = PricePauseSettings(budget_minutes_per_24h=0)
-    assert plan_day([1.0 + (i % 5) for i in range(96)], settings=settings) == []
+    assert plan_day([1.0 + (i % 5) for i in range(96)], settings=settings) == ()
 
 
 def test_recovery_longer_than_the_pause_spaces_pauses_further_apart() -> None:
@@ -302,6 +303,8 @@ RULES = planner.PauseRules(min_slots=2, max_slots=4, recovery_fraction=0.5, reco
 @pytest.mark.parametrize(
     ("paused", "ok"),
     [
+        ([], True),
+        ([False, False], True),  # no pauses
         ([True, True, False, False, False], True),
         ([True, False, False, False], False),  # too short
         ([True] * 5 + [False] * 5, False),  # too long
@@ -368,5 +371,5 @@ def test_random_days_never_violate_the_rules(seed: int) -> None:
     now, prices, history, settings = random_day(seed)
     start = planner.floor_to_quarter(now)
     quarters = quarters_from(start, prices)
-    pauses = planner.plan_pauses(quarters, history, now, settings)
+    pauses = planner.plan_pauses(quarters, history, now, settings).pauses
     assert_pauses_follow_rules(pauses, quarters, history, now, settings)
