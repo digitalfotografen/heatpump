@@ -1,14 +1,114 @@
-# Python-generated files
-__pycache__/
-*.py[oc]
-build/
-dist/
-wheels/
-*.egg-info
-
-# Virtual environments
-.venv
-
+# --- Project ---
 # Local configuration with host addresses
 config.yaml
 *.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+
+# --- Python (based on github/gitignore Python.gitignore) ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+build/
+dist/
+wheels/
+sdist/
+downloads/
+eggs/
+.eggs/
+parts/
+develop-eggs/
+.installed.cfg
+*.egg-info/
+*.egg
+MANIFEST
+share/python-wheels/
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Type checkers and linters
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+.ruff_cache/
+
+# Virtual environments and secrets
+.venv
+venv/
+env/
+ENV/
+.env
+.envrc
+
+# Jupyter / IPython
+.ipynb_checkpoints
+profile_default/
+ipython_config.py
+
+# Documentation builds
+docs/_build/
+
+# Logs
+*.log
+
+# --- JetBrains (PyCharm) ---
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# --- Other editors ---
+.vscode/
+*.swp
+*.swo
+*~
+
+# --- Claude Code ---
+.claude/worktrees/
+.claude/settings.local.json
+
+# --- macOS ---
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+.fseventsd
+.TemporaryItems
+.DocumentRevisions-V100
+Icon[\r]
+
+# --- Linux ---
+.directory
+.fuse_hidden*
+.nfs*
+.Trash-*
+
+# --- Windows ---
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
