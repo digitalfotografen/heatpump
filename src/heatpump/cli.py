@@ -5,9 +5,10 @@ implemented, so ``--help`` already shows the whole surface. Only ``run`` and
 ``relay set`` will ever change the relay.
 """
 
+import asyncio
 import json
 from contextlib import closing
-from datetime import datetime
+from datetime import UTC, datetime, time, timedelta
 from pathlib import Path
 from typing import Annotated
 from zoneinfo import ZoneInfo
@@ -17,9 +18,16 @@ from pydantic import ValidationError
 from rich.console import Console
 from rich.table import Table
 
-from heatpump import db
-from heatpump.config import ConfigError, Settings, load_settings
+from heatpump import db, prices
+from heatpump.config import (
+    ConfigError,
+    MissingSecretError,
+    Settings,
+    load_settings,
+    tibber_token,
+)
 from heatpump.logging_setup import setup_logging
+from heatpump.models import Quarter
 
 app = typer.Typer(
     name="heatpump",
@@ -212,15 +220,80 @@ def _local(moment: datetime | None, zone: ZoneInfo) -> str:
 
 
 @prices_app.command("fetch")
-def prices_fetch(show: Annotated[bool, typer.Option("--show")] = False) -> None:
+def prices_fetch(
+    ctx: typer.Context,
+    show: Annotated[bool, typer.Option("--show", help="Print the prices.")] = False,
+) -> None:
     """Fetch today's and tomorrow's prices from Tibber and store them."""
-    not_implemented(2)
+    settings = load_settings_or_exit(ctx)
+    zone = ZoneInfo(settings.location.timezone)
+    try:
+        token = tibber_token(settings)
+        with closing(db.connect(settings.database.path)) as connection:
+            db.create_schema(connection)
+            quarters = asyncio.run(
+                prices.fetch_and_store(
+                    connection,
+                    token,
+                    settings.tibber.home_index,
+                    settings.tibber.fetch_give_up_local_time,
+                    zone,
+                )
+            )
+    except (MissingSecretError, OSError, *prices.FETCH_ERRORS) as error:
+        typer.echo(f"Fetching prices failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+    typer.echo(f"Stored {len(quarters)} quarters in {settings.database.path}")
+    if show:
+        Console().print(_prices_table("Fetched prices", quarters, zone))
 
 
 @prices_app.command("show")
-def prices_show(date: Annotated[str | None, typer.Option(help="YYYY-MM-DD")] = None) -> None:
-    """Show the quarter-hour prices in local time."""
-    not_implemented(2)
+def prices_show(
+    ctx: typer.Context,
+    date: Annotated[
+        datetime | None,
+        typer.Option(formats=["%Y-%m-%d"], help="Local day, YYYY-MM-DD (default: today)."),
+    ] = None,
+) -> None:
+    """Show the quarter-hour prices of one local day."""
+    settings = load_settings_or_exit(ctx)
+    zone = ZoneInfo(settings.location.timezone)
+    day = (date or datetime.now(zone)).date()
+    start = datetime.combine(day, time(), tzinfo=zone)
+    end = datetime.combine(day + timedelta(days=1), time(), tzinfo=zone)
+    try:
+        connection = db.connect(settings.database.path, read_only=True)
+    except FileNotFoundError as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(code=1) from error
+    with closing(connection):
+        found = db.prices_for_range(connection, start, end)
+    if not found.quarters:
+        typer.echo(f"No prices stored for {day}; run `heatpump prices fetch`.", err=True)
+        raise typer.Exit(code=1)
+    console = Console()
+    console.print(_prices_table(f"Prices for {day}", found.quarters, zone))
+    for gap_start, gap_end in found.gaps:
+        console.print(
+            f"[red]Missing prices:[/red] {_local(gap_start, zone)} to {_local(gap_end, zone)}"
+        )
+
+
+def _prices_table(title: str, quarters: list[Quarter], zone: ZoneInfo) -> Table:
+    """One row per quarter in local time; the quarter that is running now is marked."""
+    now = datetime.now(UTC)
+    table = Table(title=title)
+    table.add_column("Start (local)")
+    table.add_column("Energy", justify="right")
+    table.add_column("Total", justify="right")
+    table.add_column("")
+    for quarter in quarters:
+        total = f"{quarter.total:.2f}" if quarter.total is not None else "-"
+        marker = "<- now" if quarter.start <= now < quarter.end else ""
+        local_start = quarter.start.astimezone(zone).strftime("%Y-%m-%d %H:%M %Z")
+        table.add_row(local_start, f"{quarter.energy:.2f}", total, marker)
+    return table
 
 
 @plan_app.command("show")

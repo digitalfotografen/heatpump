@@ -1,0 +1,1332 @@
+{
+ "viewer": {
+  "homes": [
+   {
+    "currentSubscription": {
+     "priceInfo": {
+      "today": [
+       {
+        "startsAt": "2026-03-29T00:00:00+01:00",
+        "energy": 0.5,
+        "tax": 0.5,
+        "total": 1.0,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T00:15:00+01:00",
+        "energy": 0.5499,
+        "tax": 0.5,
+        "total": 1.0499,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T00:30:00+01:00",
+        "energy": 0.599,
+        "tax": 0.5,
+        "total": 1.099,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T00:45:00+01:00",
+        "energy": 0.6465,
+        "tax": 0.5,
+        "total": 1.1465,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T01:00:00+01:00",
+        "energy": 0.6918,
+        "tax": 0.5,
+        "total": 1.1918,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T01:15:00+01:00",
+        "energy": 0.734,
+        "tax": 0.5,
+        "total": 1.234,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T01:30:00+01:00",
+        "energy": 0.7727,
+        "tax": 0.5,
+        "total": 1.2727,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T01:45:00+01:00",
+        "energy": 0.807,
+        "tax": 0.5,
+        "total": 1.307,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T03:00:00+02:00",
+        "energy": 0.8366,
+        "tax": 0.5,
+        "total": 1.3366,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T03:15:00+02:00",
+        "energy": 0.8609,
+        "tax": 0.5,
+        "total": 1.3609,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T03:30:00+02:00",
+        "energy": 0.8796,
+        "tax": 0.5,
+        "total": 1.3796,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T03:45:00+02:00",
+        "energy": 0.8924,
+        "tax": 0.5,
+        "total": 1.3924,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T04:00:00+02:00",
+        "energy": 0.899,
+        "tax": 0.5,
+        "total": 1.399,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T04:15:00+02:00",
+        "energy": 0.8994,
+        "tax": 0.5,
+        "total": 1.3994,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T04:30:00+02:00",
+        "energy": 0.8936,
+        "tax": 0.5,
+        "total": 1.3936,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T04:45:00+02:00",
+        "energy": 0.8816,
+        "tax": 0.5,
+        "total": 1.3816,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T05:00:00+02:00",
+        "energy": 0.8637,
+        "tax": 0.5,
+        "total": 1.3637,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T05:15:00+02:00",
+        "energy": 0.8401,
+        "tax": 0.5,
+        "total": 1.3401,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T05:30:00+02:00",
+        "energy": 0.8112,
+        "tax": 0.5,
+        "total": 1.3112,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T05:45:00+02:00",
+        "energy": 0.7775,
+        "tax": 0.5,
+        "total": 1.2775,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T06:00:00+02:00",
+        "energy": 0.7394,
+        "tax": 0.5,
+        "total": 1.2394,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T06:15:00+02:00",
+        "energy": 0.6976,
+        "tax": 0.5,
+        "total": 1.1976,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T06:30:00+02:00",
+        "energy": 0.6527,
+        "tax": 0.5,
+        "total": 1.1527,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T06:45:00+02:00",
+        "energy": 0.6054,
+        "tax": 0.5,
+        "total": 1.1054,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T07:00:00+02:00",
+        "energy": 0.5564,
+        "tax": 0.5,
+        "total": 1.0564,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T07:15:00+02:00",
+        "energy": 0.5066,
+        "tax": 0.5,
+        "total": 1.0066,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T07:30:00+02:00",
+        "energy": 0.4567,
+        "tax": 0.5,
+        "total": 0.9567,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T07:45:00+02:00",
+        "energy": 0.4075,
+        "tax": 0.5,
+        "total": 0.9075,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T08:00:00+02:00",
+        "energy": 0.3597,
+        "tax": 0.5,
+        "total": 0.8597,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T08:15:00+02:00",
+        "energy": 0.3141,
+        "tax": 0.5,
+        "total": 0.8141,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T08:30:00+02:00",
+        "energy": 0.2714,
+        "tax": 0.5,
+        "total": 0.7714,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T08:45:00+02:00",
+        "energy": 0.2322,
+        "tax": 0.5,
+        "total": 0.7322,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T09:00:00+02:00",
+        "energy": 0.1973,
+        "tax": 0.5,
+        "total": 0.6973,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T09:15:00+02:00",
+        "energy": 0.167,
+        "tax": 0.5,
+        "total": 0.667,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T09:30:00+02:00",
+        "energy": 0.142,
+        "tax": 0.5,
+        "total": 0.642,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T09:45:00+02:00",
+        "energy": 0.1226,
+        "tax": 0.5,
+        "total": 0.6226,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T10:00:00+02:00",
+        "energy": 0.109,
+        "tax": 0.5,
+        "total": 0.609,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T10:15:00+02:00",
+        "energy": 0.1015,
+        "tax": 0.5,
+        "total": 0.6015,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T10:30:00+02:00",
+        "energy": 0.1003,
+        "tax": 0.5,
+        "total": 0.6003,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T10:45:00+02:00",
+        "energy": 0.1053,
+        "tax": 0.5,
+        "total": 0.6053,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T11:00:00+02:00",
+        "energy": 0.1164,
+        "tax": 0.5,
+        "total": 0.6164,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T11:15:00+02:00",
+        "energy": 0.1336,
+        "tax": 0.5,
+        "total": 0.6336,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T11:30:00+02:00",
+        "energy": 0.1564,
+        "tax": 0.5,
+        "total": 0.6564,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T11:45:00+02:00",
+        "energy": 0.1846,
+        "tax": 0.5,
+        "total": 0.6846,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T12:00:00+02:00",
+        "energy": 0.2178,
+        "tax": 0.5,
+        "total": 0.7178,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T12:15:00+02:00",
+        "energy": 0.2553,
+        "tax": 0.5,
+        "total": 0.7553,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T12:30:00+02:00",
+        "energy": 0.2967,
+        "tax": 0.5,
+        "total": 0.7967,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T12:45:00+02:00",
+        "energy": 0.3412,
+        "tax": 0.5,
+        "total": 0.8412,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T13:00:00+02:00",
+        "energy": 0.3882,
+        "tax": 0.5,
+        "total": 0.8882,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T13:15:00+02:00",
+        "energy": 0.437,
+        "tax": 0.5,
+        "total": 0.937,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T13:30:00+02:00",
+        "energy": 0.4867,
+        "tax": 0.5,
+        "total": 0.9867,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T13:45:00+02:00",
+        "energy": 0.5367,
+        "tax": 0.5,
+        "total": 1.0367,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T14:00:00+02:00",
+        "energy": 0.586,
+        "tax": 0.5,
+        "total": 1.086,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T14:15:00+02:00",
+        "energy": 0.6341,
+        "tax": 0.5,
+        "total": 1.1341,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T14:30:00+02:00",
+        "energy": 0.68,
+        "tax": 0.5,
+        "total": 1.18,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T14:45:00+02:00",
+        "energy": 0.7231,
+        "tax": 0.5,
+        "total": 1.2231,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T15:00:00+02:00",
+        "energy": 0.7628,
+        "tax": 0.5,
+        "total": 1.2628,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T15:15:00+02:00",
+        "energy": 0.7983,
+        "tax": 0.5,
+        "total": 1.2983,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T15:30:00+02:00",
+        "energy": 0.8292,
+        "tax": 0.5,
+        "total": 1.3292,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T15:45:00+02:00",
+        "energy": 0.855,
+        "tax": 0.5,
+        "total": 1.355,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T16:00:00+02:00",
+        "energy": 0.8752,
+        "tax": 0.5,
+        "total": 1.3752,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T16:15:00+02:00",
+        "energy": 0.8896,
+        "tax": 0.5,
+        "total": 1.3896,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T16:30:00+02:00",
+        "energy": 0.8978,
+        "tax": 0.5,
+        "total": 1.3978,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T16:45:00+02:00",
+        "energy": 0.8999,
+        "tax": 0.5,
+        "total": 1.3999,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T17:00:00+02:00",
+        "energy": 0.8957,
+        "tax": 0.5,
+        "total": 1.3957,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T17:15:00+02:00",
+        "energy": 0.8854,
+        "tax": 0.5,
+        "total": 1.3854,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T17:30:00+02:00",
+        "energy": 0.869,
+        "tax": 0.5,
+        "total": 1.369,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T17:45:00+02:00",
+        "energy": 0.8469,
+        "tax": 0.5,
+        "total": 1.3469,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T18:00:00+02:00",
+        "energy": 0.8194,
+        "tax": 0.5,
+        "total": 1.3194,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T18:15:00+02:00",
+        "energy": 0.7869,
+        "tax": 0.5,
+        "total": 1.2869,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T18:30:00+02:00",
+        "energy": 0.7499,
+        "tax": 0.5,
+        "total": 1.2499,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T18:45:00+02:00",
+        "energy": 0.709,
+        "tax": 0.5,
+        "total": 1.209,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T19:00:00+02:00",
+        "energy": 0.6648,
+        "tax": 0.5,
+        "total": 1.1648,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T19:15:00+02:00",
+        "energy": 0.6181,
+        "tax": 0.5,
+        "total": 1.1181,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T19:30:00+02:00",
+        "energy": 0.5696,
+        "tax": 0.5,
+        "total": 1.0696,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T19:45:00+02:00",
+        "energy": 0.5199,
+        "tax": 0.5,
+        "total": 1.0199,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T20:00:00+02:00",
+        "energy": 0.4699,
+        "tax": 0.5,
+        "total": 0.9699,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T20:15:00+02:00",
+        "energy": 0.4204,
+        "tax": 0.5,
+        "total": 0.9204,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T20:30:00+02:00",
+        "energy": 0.3722,
+        "tax": 0.5,
+        "total": 0.8722,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T20:45:00+02:00",
+        "energy": 0.3259,
+        "tax": 0.5,
+        "total": 0.8259,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T21:00:00+02:00",
+        "energy": 0.2824,
+        "tax": 0.5,
+        "total": 0.7824,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T21:15:00+02:00",
+        "energy": 0.2422,
+        "tax": 0.5,
+        "total": 0.7422,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T21:30:00+02:00",
+        "energy": 0.2061,
+        "tax": 0.5,
+        "total": 0.7061,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T21:45:00+02:00",
+        "energy": 0.1746,
+        "tax": 0.5,
+        "total": 0.6746,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T22:00:00+02:00",
+        "energy": 0.1481,
+        "tax": 0.5,
+        "total": 0.6481,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T22:15:00+02:00",
+        "energy": 0.1272,
+        "tax": 0.5,
+        "total": 0.6272,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T22:30:00+02:00",
+        "energy": 0.112,
+        "tax": 0.5,
+        "total": 0.612,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T22:45:00+02:00",
+        "energy": 0.1029,
+        "tax": 0.5,
+        "total": 0.6029,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T23:00:00+02:00",
+        "energy": 0.1,
+        "tax": 0.5,
+        "total": 0.6,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T23:15:00+02:00",
+        "energy": 0.1033,
+        "tax": 0.5,
+        "total": 0.6033,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T23:30:00+02:00",
+        "energy": 0.1129,
+        "tax": 0.5,
+        "total": 0.6129,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-29T23:45:00+02:00",
+        "energy": 0.1284,
+        "tax": 0.5,
+        "total": 0.6284,
+        "currency": "SEK"
+       }
+      ],
+      "tomorrow": [
+       {
+        "startsAt": "2026-03-30T00:00:00+02:00",
+        "energy": 0.5,
+        "tax": 0.5,
+        "total": 1.0,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T00:15:00+02:00",
+        "energy": 0.5499,
+        "tax": 0.5,
+        "total": 1.0499,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T00:30:00+02:00",
+        "energy": 0.599,
+        "tax": 0.5,
+        "total": 1.099,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T00:45:00+02:00",
+        "energy": 0.6465,
+        "tax": 0.5,
+        "total": 1.1465,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T01:00:00+02:00",
+        "energy": 0.6918,
+        "tax": 0.5,
+        "total": 1.1918,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T01:15:00+02:00",
+        "energy": 0.734,
+        "tax": 0.5,
+        "total": 1.234,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T01:30:00+02:00",
+        "energy": 0.7727,
+        "tax": 0.5,
+        "total": 1.2727,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T01:45:00+02:00",
+        "energy": 0.807,
+        "tax": 0.5,
+        "total": 1.307,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T02:00:00+02:00",
+        "energy": 0.8366,
+        "tax": 0.5,
+        "total": 1.3366,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T02:15:00+02:00",
+        "energy": 0.8609,
+        "tax": 0.5,
+        "total": 1.3609,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T02:30:00+02:00",
+        "energy": 0.8796,
+        "tax": 0.5,
+        "total": 1.3796,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T02:45:00+02:00",
+        "energy": 0.8924,
+        "tax": 0.5,
+        "total": 1.3924,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T03:00:00+02:00",
+        "energy": 0.899,
+        "tax": 0.5,
+        "total": 1.399,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T03:15:00+02:00",
+        "energy": 0.8994,
+        "tax": 0.5,
+        "total": 1.3994,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T03:30:00+02:00",
+        "energy": 0.8936,
+        "tax": 0.5,
+        "total": 1.3936,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T03:45:00+02:00",
+        "energy": 0.8816,
+        "tax": 0.5,
+        "total": 1.3816,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T04:00:00+02:00",
+        "energy": 0.8637,
+        "tax": 0.5,
+        "total": 1.3637,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T04:15:00+02:00",
+        "energy": 0.8401,
+        "tax": 0.5,
+        "total": 1.3401,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T04:30:00+02:00",
+        "energy": 0.8112,
+        "tax": 0.5,
+        "total": 1.3112,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T04:45:00+02:00",
+        "energy": 0.7775,
+        "tax": 0.5,
+        "total": 1.2775,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T05:00:00+02:00",
+        "energy": 0.7394,
+        "tax": 0.5,
+        "total": 1.2394,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T05:15:00+02:00",
+        "energy": 0.6976,
+        "tax": 0.5,
+        "total": 1.1976,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T05:30:00+02:00",
+        "energy": 0.6527,
+        "tax": 0.5,
+        "total": 1.1527,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T05:45:00+02:00",
+        "energy": 0.6054,
+        "tax": 0.5,
+        "total": 1.1054,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T06:00:00+02:00",
+        "energy": 0.5564,
+        "tax": 0.5,
+        "total": 1.0564,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T06:15:00+02:00",
+        "energy": 0.5066,
+        "tax": 0.5,
+        "total": 1.0066,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T06:30:00+02:00",
+        "energy": 0.4567,
+        "tax": 0.5,
+        "total": 0.9567,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T06:45:00+02:00",
+        "energy": 0.4075,
+        "tax": 0.5,
+        "total": 0.9075,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T07:00:00+02:00",
+        "energy": 0.3597,
+        "tax": 0.5,
+        "total": 0.8597,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T07:15:00+02:00",
+        "energy": 0.3141,
+        "tax": 0.5,
+        "total": 0.8141,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T07:30:00+02:00",
+        "energy": 0.2714,
+        "tax": 0.5,
+        "total": 0.7714,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T07:45:00+02:00",
+        "energy": 0.2322,
+        "tax": 0.5,
+        "total": 0.7322,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T08:00:00+02:00",
+        "energy": 0.1973,
+        "tax": 0.5,
+        "total": 0.6973,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T08:15:00+02:00",
+        "energy": 0.167,
+        "tax": 0.5,
+        "total": 0.667,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T08:30:00+02:00",
+        "energy": 0.142,
+        "tax": 0.5,
+        "total": 0.642,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T08:45:00+02:00",
+        "energy": 0.1226,
+        "tax": 0.5,
+        "total": 0.6226,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T09:00:00+02:00",
+        "energy": 0.109,
+        "tax": 0.5,
+        "total": 0.609,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T09:15:00+02:00",
+        "energy": 0.1015,
+        "tax": 0.5,
+        "total": 0.6015,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T09:30:00+02:00",
+        "energy": 0.1003,
+        "tax": 0.5,
+        "total": 0.6003,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T09:45:00+02:00",
+        "energy": 0.1053,
+        "tax": 0.5,
+        "total": 0.6053,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T10:00:00+02:00",
+        "energy": 0.1164,
+        "tax": 0.5,
+        "total": 0.6164,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T10:15:00+02:00",
+        "energy": 0.1336,
+        "tax": 0.5,
+        "total": 0.6336,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T10:30:00+02:00",
+        "energy": 0.1564,
+        "tax": 0.5,
+        "total": 0.6564,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T10:45:00+02:00",
+        "energy": 0.1846,
+        "tax": 0.5,
+        "total": 0.6846,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T11:00:00+02:00",
+        "energy": 0.2178,
+        "tax": 0.5,
+        "total": 0.7178,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T11:15:00+02:00",
+        "energy": 0.2553,
+        "tax": 0.5,
+        "total": 0.7553,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T11:30:00+02:00",
+        "energy": 0.2967,
+        "tax": 0.5,
+        "total": 0.7967,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T11:45:00+02:00",
+        "energy": 0.3412,
+        "tax": 0.5,
+        "total": 0.8412,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T12:00:00+02:00",
+        "energy": 0.3882,
+        "tax": 0.5,
+        "total": 0.8882,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T12:15:00+02:00",
+        "energy": 0.437,
+        "tax": 0.5,
+        "total": 0.937,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T12:30:00+02:00",
+        "energy": 0.4867,
+        "tax": 0.5,
+        "total": 0.9867,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T12:45:00+02:00",
+        "energy": 0.5367,
+        "tax": 0.5,
+        "total": 1.0367,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T13:00:00+02:00",
+        "energy": 0.586,
+        "tax": 0.5,
+        "total": 1.086,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T13:15:00+02:00",
+        "energy": 0.6341,
+        "tax": 0.5,
+        "total": 1.1341,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T13:30:00+02:00",
+        "energy": 0.68,
+        "tax": 0.5,
+        "total": 1.18,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T13:45:00+02:00",
+        "energy": 0.7231,
+        "tax": 0.5,
+        "total": 1.2231,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T14:00:00+02:00",
+        "energy": 0.7628,
+        "tax": 0.5,
+        "total": 1.2628,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T14:15:00+02:00",
+        "energy": 0.7983,
+        "tax": 0.5,
+        "total": 1.2983,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T14:30:00+02:00",
+        "energy": 0.8292,
+        "tax": 0.5,
+        "total": 1.3292,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T14:45:00+02:00",
+        "energy": 0.855,
+        "tax": 0.5,
+        "total": 1.355,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T15:00:00+02:00",
+        "energy": 0.8752,
+        "tax": 0.5,
+        "total": 1.3752,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T15:15:00+02:00",
+        "energy": 0.8896,
+        "tax": 0.5,
+        "total": 1.3896,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T15:30:00+02:00",
+        "energy": 0.8978,
+        "tax": 0.5,
+        "total": 1.3978,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T15:45:00+02:00",
+        "energy": 0.8999,
+        "tax": 0.5,
+        "total": 1.3999,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T16:00:00+02:00",
+        "energy": 0.8957,
+        "tax": 0.5,
+        "total": 1.3957,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T16:15:00+02:00",
+        "energy": 0.8854,
+        "tax": 0.5,
+        "total": 1.3854,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T16:30:00+02:00",
+        "energy": 0.869,
+        "tax": 0.5,
+        "total": 1.369,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T16:45:00+02:00",
+        "energy": 0.8469,
+        "tax": 0.5,
+        "total": 1.3469,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T17:00:00+02:00",
+        "energy": 0.8194,
+        "tax": 0.5,
+        "total": 1.3194,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T17:15:00+02:00",
+        "energy": 0.7869,
+        "tax": 0.5,
+        "total": 1.2869,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T17:30:00+02:00",
+        "energy": 0.7499,
+        "tax": 0.5,
+        "total": 1.2499,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T17:45:00+02:00",
+        "energy": 0.709,
+        "tax": 0.5,
+        "total": 1.209,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T18:00:00+02:00",
+        "energy": 0.6648,
+        "tax": 0.5,
+        "total": 1.1648,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T18:15:00+02:00",
+        "energy": 0.6181,
+        "tax": 0.5,
+        "total": 1.1181,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T18:30:00+02:00",
+        "energy": 0.5696,
+        "tax": 0.5,
+        "total": 1.0696,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T18:45:00+02:00",
+        "energy": 0.5199,
+        "tax": 0.5,
+        "total": 1.0199,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T19:00:00+02:00",
+        "energy": 0.4699,
+        "tax": 0.5,
+        "total": 0.9699,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T19:15:00+02:00",
+        "energy": 0.4204,
+        "tax": 0.5,
+        "total": 0.9204,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T19:30:00+02:00",
+        "energy": 0.3722,
+        "tax": 0.5,
+        "total": 0.8722,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T19:45:00+02:00",
+        "energy": 0.3259,
+        "tax": 0.5,
+        "total": 0.8259,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T20:00:00+02:00",
+        "energy": 0.2824,
+        "tax": 0.5,
+        "total": 0.7824,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T20:15:00+02:00",
+        "energy": 0.2422,
+        "tax": 0.5,
+        "total": 0.7422,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T20:30:00+02:00",
+        "energy": 0.2061,
+        "tax": 0.5,
+        "total": 0.7061,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T20:45:00+02:00",
+        "energy": 0.1746,
+        "tax": 0.5,
+        "total": 0.6746,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T21:00:00+02:00",
+        "energy": 0.1481,
+        "tax": 0.5,
+        "total": 0.6481,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T21:15:00+02:00",
+        "energy": 0.1272,
+        "tax": 0.5,
+        "total": 0.6272,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T21:30:00+02:00",
+        "energy": 0.112,
+        "tax": 0.5,
+        "total": 0.612,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T21:45:00+02:00",
+        "energy": 0.1029,
+        "tax": 0.5,
+        "total": 0.6029,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T22:00:00+02:00",
+        "energy": 0.1,
+        "tax": 0.5,
+        "total": 0.6,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T22:15:00+02:00",
+        "energy": 0.1033,
+        "tax": 0.5,
+        "total": 0.6033,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T22:30:00+02:00",
+        "energy": 0.1129,
+        "tax": 0.5,
+        "total": 0.6129,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T22:45:00+02:00",
+        "energy": 0.1284,
+        "tax": 0.5,
+        "total": 0.6284,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T23:00:00+02:00",
+        "energy": 0.1498,
+        "tax": 0.5,
+        "total": 0.6498,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T23:15:00+02:00",
+        "energy": 0.1767,
+        "tax": 0.5,
+        "total": 0.6767,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T23:30:00+02:00",
+        "energy": 0.2085,
+        "tax": 0.5,
+        "total": 0.7085,
+        "currency": "SEK"
+       },
+       {
+        "startsAt": "2026-03-30T23:45:00+02:00",
+        "energy": 0.245,
+        "tax": 0.5,
+        "total": 0.745,
+        "currency": "SEK"
+       }
+      ]
+     }
+    }
+   }
+  ]
+ }
+}

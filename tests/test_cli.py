@@ -8,7 +8,6 @@ runner = CliRunner()
 STUB_COMMANDS = [
     ["run"],
     ["status"],
-    ["prices", "fetch"],
     ["plan", "now"],
     ["relay", "status"],
     ["hat", "scan"],
