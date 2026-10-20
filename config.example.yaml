@@ -1,0 +1,73 @@
+# Heat pump price controller: example configuration.
+# Copy to config.yaml (git-ignored) and adjust. Secrets come from the
+# environment, never from this file; the *_env keys name the variables.
+
+location:
+  latitude: 59.33          # Stockholm, approximate: replace with the house position
+  longitude: 18.07
+  timezone: Europe/Stockholm
+
+tibber:
+  token_env: TIBBER_TOKEN
+  home_index: 0
+  fetch_after_local_time: "14:00"     # tomorrow's prices arrive around 13:00-14:00
+  fetch_give_up_local_time: "23:00"   # stop retrying for the day after this
+
+price_pause:
+  min_minutes: 30
+  max_minutes: 180
+  budget_minutes_per_24h: 360
+  recovery_fraction: 0.5              # run at least pause * fraction after a pause ...
+  recovery_min_minutes: 30            # ... but never less than this
+  min_expected_saving_sek: 1.0        # per planning horizon; below this, no price pauses
+  heat_demand_kw: 1.0                 # flat demand used for scoring until outdoor-based demand exists
+  replan_interval_hours: 6
+  replan_interval_while_burning_hours: 1
+
+stove:
+  temperature_topic: stove/temperature
+  availability_topic: stove/availability
+  burning_above_c: 50                 # pause starts here ...
+  hysteresis_c: 10                    # ... and ends at burning_above_c - hysteresis_c
+  min_pause_minutes: 30
+  max_pause_minutes: 360              # one stove pause in a row; then recovery, then it may pause again
+  recovery_fraction: 0.5
+  recovery_min_minutes: 30
+  stale_after_seconds: 300            # no reading for this long = stove treated as cold
+
+weather:
+  provider: open-meteo                # future: trafikverket, mqtt (own sensor)
+  fetch_interval_minutes: 30
+  stale_after_minutes: 180
+
+guard:
+  absolute_max_pause_minutes: 360     # any reason; the guard releases the relay past this
+  max_paused_minutes_per_24h: 720     # price + stove combined; keeps a hot water window
+
+relay:
+  driver: mcp23017                    # mcp23017 on the Pi | dry-run on the dev machine and in tests
+  i2c_bus: 1
+  i2c_address: 0x22
+  pin: GPB0                           # high = relay closed = EXT closed = heat pump paused
+
+heating:
+  enabled: true                       # false on the dev machine (no HAT)
+  i2c_bus: 1
+  i2c_address: 0x66                   # MCP9600 with a type K thermocouple on the heating circuit
+  thermocouple_type: K
+  sample_interval_seconds: 60
+
+mqtt:
+  host: 192.168.1.10                  # the broker Pi
+  port: 1883
+  username_env: MQTT_USER
+  password_env: MQTT_PASSWORD
+  topic_prefix: heatpump
+
+database:
+  path: /var/lib/heatpump/heatpump.sqlite3
+
+control:
+  tick_seconds: 60
+  lock_file: /var/lib/heatpump/heatpump.lock   # refuses manual relay commands while the service runs
+  log_level: INFO
