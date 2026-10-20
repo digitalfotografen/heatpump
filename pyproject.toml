@@ -1,0 +1,45 @@
+[project]
+name = "heatpump"
+version = "0.1.0"
+description = "Heat pump price controller: pauses a Rego 637 through its EXT input at expensive electricity prices"
+readme = "README.md"
+authors = [
+    { name = "Ulrik Södergren", email = "ulrik@digitalfotografen.se" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "aiomqtt>=2.5.1",
+    "httpx>=0.28.1",
+    "pydantic>=2.14.1",
+    "pytibber>=0.39.0",
+    "pyyaml>=6.0.3",
+    "rich>=15.0.0",
+    "smbus2>=0.6.1",
+    "tenacity>=9.2.1",
+    "typer>=0.27.3",
+]
+
+[project.scripts]
+heatpump = "heatpump:main"
+
+[build-system]
+requires = ["uv_build>=0.12.18,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "ruff>=0.17.1",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
