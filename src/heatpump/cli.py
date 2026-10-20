@@ -25,10 +25,12 @@ from heatpump.config import (
     MissingSecretError,
     Settings,
     load_settings,
+    mqtt_credentials,
     tibber_token,
 )
 from heatpump.logging_setup import setup_logging
-from heatpump.models import Plan, Quarter
+from heatpump.models import Plan, Quarter, StoveReading, StoveState
+from heatpump.stove import StoveListener, run_listener
 
 app = typer.Typer(
     name="heatpump",
@@ -98,9 +100,46 @@ def run() -> None:
 
 
 @app.command()
-def stove(watch: WatchOption = False) -> None:
-    """Show the latest stove reading and state."""
-    not_implemented(5)
+def stove(ctx: typer.Context, watch: WatchOption = False) -> None:
+    """Show the latest stove reading and state; with --watch, follow the MQTT feed live."""
+    settings = load_settings_or_exit(ctx)
+    zone = ZoneInfo(settings.location.timezone)
+    if watch:
+        _watch_stove(settings, zone)
+        return
+    with closing(_open_read_only(settings)) as connection:
+        reading = db.latest_stove_reading(connection)
+    if reading is None:
+        typer.echo("No stove readings stored; try `heatpump stove --watch`.", err=True)
+        raise typer.Exit(code=1)
+    age = datetime.now(UTC) - reading.ts
+    state = reading.state
+    if age > timedelta(seconds=settings.stove.stale_after_seconds):
+        state = StoveState.STALE
+    typer.echo(f"{_stove_line(reading, zone, state)} ({int(age.total_seconds())} s ago)")
+
+
+def _stove_line(reading: StoveReading, zone: ZoneInfo, state: StoveState | None = None) -> str:
+    local = reading.ts.astimezone(zone).strftime("%Y-%m-%d %H:%M:%S")
+    return f"{local}  {reading.temperature:6.1f} °C  {state or reading.state}"
+
+
+def _watch_stove(settings: Settings, zone: ZoneInfo) -> None:
+    """Print every stove reading from the broker until interrupted; nothing is stored."""
+    try:
+        credentials = mqtt_credentials(settings)
+    except MissingSecretError as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(code=1) from error
+    listener = StoveListener(
+        settings.stove, on_reading=lambda reading: typer.echo(_stove_line(reading, zone))
+    )
+    mqtt = settings.mqtt
+    typer.echo(f"Listening to {settings.stove.temperature_topic} on {mqtt.host}:{mqtt.port} ...")
+    try:
+        asyncio.run(run_listener(listener, mqtt, credentials))
+    except KeyboardInterrupt:
+        typer.echo("Stopped.")
 
 
 @app.command()
