@@ -31,6 +31,7 @@ from heatpump.config import (
 from heatpump.logging_setup import setup_logging
 from heatpump.models import Plan, Quarter, StoveReading, StoveState
 from heatpump.stove import StoveListener, run_listener
+from heatpump.weather import OpenMeteoProvider, WeatherError, fetch_and_store, is_stale
 
 app = typer.Typer(
     name="heatpump",
@@ -144,10 +145,33 @@ def _watch_stove(settings: Settings, zone: ZoneInfo) -> None:
 
 @app.command()
 def weather(
+    ctx: typer.Context,
     fetch: Annotated[bool, typer.Option("--fetch", help="Poll Open-Meteo once.")] = False,
 ) -> None:
-    """Show the latest outdoor temperature and its age."""
-    not_implemented(6)
+    """Show the latest outdoor temperature and its age; with --fetch, poll Open-Meteo first."""
+    settings = load_settings_or_exit(ctx)
+    if fetch:
+        provider = OpenMeteoProvider.from_settings(settings.location)
+        try:
+            with closing(db.connect(settings.database.path)) as connection:
+                db.create_schema(connection)
+                asyncio.run(fetch_and_store(connection, provider))
+        except (WeatherError, OSError) as error:
+            typer.echo(f"Fetching the outdoor temperature failed: {error}", err=True)
+            raise typer.Exit(code=1) from error
+    with closing(_open_read_only(settings)) as connection:
+        reading = db.latest_outdoor_reading(connection)
+    if reading is None:
+        typer.echo("No outdoor temperature stored; try `heatpump weather --fetch`.", err=True)
+        raise typer.Exit(code=1)
+    now = datetime.now(UTC)
+    local = reading.ts.astimezone(ZoneInfo(settings.location.timezone))
+    stale = " (stale)" if is_stale(reading, now, settings.weather) else ""
+    age_minutes = int((now - reading.ts).total_seconds() // 60)
+    typer.echo(
+        f"{local:%Y-%m-%d %H:%M}  {reading.temperature:5.1f} °C  {reading.detail}, "
+        f"{age_minutes} min ago{stale}"
+    )
 
 
 @app.command()
