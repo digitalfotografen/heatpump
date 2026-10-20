@@ -5,12 +5,19 @@ implemented, so ``--help`` already shows the whole surface. Only ``run`` and
 ``relay set`` will ever change the relay.
 """
 
+import json
+from contextlib import closing
+from datetime import datetime
 from pathlib import Path
 from typing import Annotated
+from zoneinfo import ZoneInfo
 
 import typer
 from pydantic import ValidationError
+from rich.console import Console
+from rich.table import Table
 
+from heatpump import db
 from heatpump.config import ConfigError, Settings, load_settings
 from heatpump.logging_setup import setup_logging
 
@@ -138,15 +145,70 @@ def replay(date: Annotated[str, typer.Option(help="Day to replay, YYYY-MM-DD.")]
 
 
 @db_app.command("init")
-def db_init() -> None:
+def db_init(ctx: typer.Context) -> None:
     """Create the database schema (idempotent)."""
-    not_implemented(1)
+    settings = load_settings_or_exit(ctx)
+    path = settings.database.path
+    try:
+        connection = db.connect(path)
+    except OSError as error:
+        typer.echo(f"Cannot open {path}: {error}", err=True)
+        raise typer.Exit(code=1) from error
+    with closing(connection):
+        db.create_schema(connection)
+    typer.echo(f"Database ready at {path}")
 
 
 @db_app.command("info")
-def db_info() -> None:
+def db_info(ctx: typer.Context, as_json: JsonOption = False) -> None:
     """Show path, size, row counts and first/last timestamp per table."""
-    not_implemented(1)
+    settings = load_settings_or_exit(ctx)
+    path = settings.database.path
+    try:
+        connection = db.connect(path, read_only=True)
+    except FileNotFoundError as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(code=1) from error
+    with closing(connection):
+        summaries = db.table_summaries(connection)
+    size_bytes = path.stat().st_size
+    if as_json:
+        typer.echo(json.dumps(_db_info_json(path, size_bytes, summaries), indent=2))
+        return
+    zone = ZoneInfo(settings.location.timezone)
+    Console().print(_db_info_table(path, size_bytes, summaries, zone))
+
+
+def _db_info_json(path: Path, size_bytes: int, summaries: list[db.TableSummary]) -> dict:
+    return {
+        "path": str(path),
+        "size_bytes": size_bytes,
+        "tables": {
+            s.table: {
+                "rows": s.rows,
+                "first": db.to_iso(s.first) if s.first else None,
+                "last": db.to_iso(s.last) if s.last else None,
+            }
+            for s in summaries
+        },
+    }
+
+
+def _db_info_table(
+    path: Path, size_bytes: int, summaries: list[db.TableSummary], zone: ZoneInfo
+) -> Table:
+    table = Table(title=f"{path} ({size_bytes / 1024:.0f} KiB)")
+    table.add_column("Table")
+    table.add_column("Rows", justify="right")
+    table.add_column("First (local)")
+    table.add_column("Last (local)")
+    for s in summaries:
+        table.add_row(s.table, str(s.rows), _local(s.first, zone), _local(s.last, zone))
+    return table
+
+
+def _local(moment: datetime | None, zone: ZoneInfo) -> str:
+    return moment.astimezone(zone).strftime("%Y-%m-%d %H:%M") if moment else "-"
 
 
 @prices_app.command("fetch")
