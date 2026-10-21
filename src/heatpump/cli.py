@@ -23,7 +23,7 @@ from pydantic import ValidationError
 from rich.console import Console
 from rich.table import Table
 
-from heatpump import budget, db, heating, planner, prices
+from heatpump import budget, db, heating, mqtt, planner, prices
 from heatpump import status as status_module
 from heatpump.config import (
     ConfigError,
@@ -708,9 +708,23 @@ def hat_scan(ctx: typer.Context) -> None:
 
 
 @mqtt_app.command("publish-state")
-def mqtt_publish_state() -> None:
-    """Publish the current state once, for debugging the broker side."""
-    not_implemented(10)
+def mqtt_publish_state(ctx: typer.Context) -> None:
+    """Publish the latest stored state once, for debugging the broker side; no relay access."""
+    settings = load_settings_or_exit(ctx)
+    with closing(_open_read_only(settings)) as connection:
+        messages = mqtt.snapshot_messages(connection, settings, datetime.now(UTC))
+    if not messages:
+        typer.echo("No ticks logged yet; start the service with `heatpump run`.", err=True)
+        raise typer.Exit(code=1)
+    try:
+        asyncio.run(mqtt.publish_once(settings.mqtt, mqtt_credentials(settings), messages))
+    except (MissingSecretError, mqtt.aiomqtt.MqttError) as error:
+        typer.echo(
+            f"Cannot publish to {settings.mqtt.host}:{settings.mqtt.port}: {error}", err=True
+        )
+        raise typer.Exit(code=1) from error
+    for message in messages:
+        typer.echo(f"{message.topic}: {message.payload}")
 
 
 @service_app.command("install")

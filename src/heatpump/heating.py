@@ -59,10 +59,12 @@ async def run_sampler(
     conn: sqlite3.Connection,
     settings: HeatingSettings,
     sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+    on_sample: Callable[[TemperatureReading], None] = lambda reading: None,
 ) -> None:
-    """Store a reading every ``sample_interval_seconds`` forever."""
+    """Store a reading every ``sample_interval_seconds`` forever and pass it to ``on_sample``."""
     while True:
         if (reading := sample(sensor)) is not None:
             db.insert_heating_reading(conn, reading)
+            on_sample(reading)
             log.info("Heating circuit %.1f °C", reading.temperature)
         await sleep(settings.sample_interval_seconds)

@@ -16,10 +16,10 @@ import sqlite3
 from collections.abc import Awaitable, Callable, Sequence
 from contextlib import closing
 from dataclasses import dataclass, replace
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
-from heatpump import budget, db, planner, prices
+from heatpump import budget, db, mqtt, planner, prices
 from heatpump.config import Settings, mqtt_credentials, tibber_token
 from heatpump.guard import GuardDecision, GuardReason, GuardState, decide
 from heatpump.heating import open_sensor, run_sampler
@@ -31,8 +31,10 @@ from heatpump.models import (
     PauseEvent,
     PauseKind,
     Plan,
+    Quarter,
     StoveState,
 )
+from heatpump.mqtt import CommandHandler, Publisher, run_publisher
 from heatpump.relay import Relay, RelayMismatch, ServiceLock, create_relay
 from heatpump.stove import StoveListener, StoveMonitor, run_listener
 from heatpump.weather import OpenMeteoProvider, is_stale, run_poller
@@ -65,20 +67,38 @@ class ControllerState:
     planned_at: datetime | None = None
     planned_price_slot: datetime | None = None
     pending_replan: str | None = None
+    mode_since: datetime | None = None
+    published_relay: str | None = None
+    published_quarter: datetime | None = None
+    published_prices: tuple[date, datetime | None] | None = None
+    stove_feed_stale: bool = False
+    outdoor_stale: bool = False
 
 
 class Controller:
     """Owns the relay. Call :meth:`start` once, :meth:`tick` every minute, :meth:`shutdown` last."""
 
     def __init__(
-        self, settings: Settings, conn: sqlite3.Connection, relay: Relay, stove: StoveMonitor
+        self,
+        settings: Settings,
+        conn: sqlite3.Connection,
+        relay: Relay,
+        stove: StoveMonitor,
+        publisher: Publisher | None = None,
     ) -> None:
         self._settings = settings
         self._conn = conn
         self._relay = relay
         self._stove = stove
+        self._zone = ZoneInfo(settings.location.timezone)
+        self.publisher = publisher or Publisher(settings.mqtt.topic_prefix)
         self.state = ControllerState()
-        self.force_run = False  # latched by the MQTT command in phase 10
+        self.force_run = False  # latched by the MQTT command
+
+    def set_force_run(self, value: bool) -> None:
+        """Latch or clear the guard's force-run (the ``cmd/force_run`` topic)."""
+        self.force_run = value
+        log.warning("Force run %s by command", "on" if value else "off")
 
     @property
     def plan(self) -> Plan | None:
@@ -91,6 +111,7 @@ class Controller:
         self._release_relay()
         self._resume_open_pause(now)
         self._replan(now, "startup")
+        self._publish_prices(now)
 
     def shutdown(self) -> None:
         """Release the relay; an open pause event stays open so a quick restart can resume it."""
@@ -144,7 +165,8 @@ class Controller:
             self._reinitialise_relay()
         stove_state = self._stove.state(now)
         burning = stove_state is StoveState.BURNING
-        price = self._price_now(now)
+        quarter = self._current_quarter(now)
+        price = quarter.energy if quarter else None
         plan_id = state.plan.id if state.plan else None
 
         self._end_pause_if_over(now, stove_state)
@@ -179,6 +201,7 @@ class Controller:
         )
         db.insert_control_log(self._conn, decision)
         self._report_changes(decision, reason)
+        self._publish(decision, quarter)
         state.last_tick_at = now
         if reason := self._replan_reason(now, burning):
             self._replan(now, reason)
@@ -381,6 +404,7 @@ class Controller:
         self.state.plan = replace(plan, id=db.insert_plan(self._conn, plan))
         self.state.planned_at = now
         self.state.planned_price_slot = db.latest_price_slot(self._conn)
+        self.publisher.publish("plan", mqtt.plan_payload(self.state.plan, self._zone))
         log.info(
             "Planned (%s): %s, %d price pauses, expected saving %.2f SEK",
             reason,
@@ -400,10 +424,10 @@ class Controller:
 
     # --- inputs for the log -------------------------------------------------
 
-    def _price_now(self, now: datetime) -> float | None:
+    def _current_quarter(self, now: datetime) -> Quarter | None:
         slot = planner.floor_to_quarter(now)
         quarters = db.prices_for_range(self._conn, slot, slot + planner.SLOT).quarters
-        return quarters[0].energy if quarters else None
+        return quarters[0] if quarters else None
 
     def _outdoor_temperature(self, now: datetime) -> float | None:
         reading = db.latest_outdoor_reading(self._conn)
@@ -426,11 +450,55 @@ class Controller:
         state = self.state
         if decision.mode is not state.last_mode:
             log.info("Mode %s -> %s", state.last_mode, decision.mode)
+            state.mode_since = decision.ts
         if reason is not None and reason is not state.last_guard_reason:
             level = logging.ERROR if reason.is_alert else logging.WARNING
             log.log(level, "Guard released the relay: %s", reason)
+            self.publisher.alert(reason.value, decision.ts)
+        self._alert_stale_feeds(decision)
         state.last_mode = decision.mode
         state.last_guard_reason = reason
+
+    def _alert_stale_feeds(self, decision: ControlDecision) -> None:
+        """Publish an alert when the stove or outdoor feed goes stale (not on every tick)."""
+        state = self.state
+        stove_stale = decision.stove_state is StoveState.STALE
+        if stove_stale and not state.stove_feed_stale:
+            self.publisher.alert("stove_feed_stale", decision.ts)
+        outdoor_stale = decision.outdoor_temp is None
+        if outdoor_stale and not state.outdoor_stale:
+            self.publisher.alert("outdoor_stale", decision.ts)
+        state.stove_feed_stale, state.outdoor_stale = stove_stale, outdoor_stale
+
+    # --- MQTT ---------------------------------------------------------------
+
+    def _publish(self, decision: ControlDecision, quarter: Quarter | None) -> None:
+        """State every tick; relay, current price and the day's prices when they change."""
+        state, publisher = self.state, self.publisher
+        assert state.mode_since is not None
+        publisher.publish("state", mqtt.state_payload(decision, state.mode_since))
+        relay = mqtt.relay_text(decision)
+        if relay != state.published_relay:
+            publisher.publish("relay", relay)
+            state.published_relay = relay
+        slot = quarter.start if quarter else None
+        if slot != state.published_quarter:
+            publisher.publish("price/current", mqtt.quarter_payload(quarter) if quarter else "")
+            state.published_quarter = slot
+        self._publish_prices(decision.ts)
+
+    def _publish_prices(self, now: datetime) -> None:
+        """Today's and tomorrow's quarters, after a fetch or when the local day turns over."""
+        today = now.astimezone(self._zone).date()
+        key = (today, db.latest_price_slot(self._conn))
+        if key == self.state.published_prices:
+            return
+        for suffix, day in (("today", today), ("tomorrow", today + timedelta(days=1))):
+            start = datetime.combine(day, time.min, self._zone).astimezone(UTC)
+            end = datetime.combine(day + timedelta(days=1), time.min, self._zone).astimezone(UTC)
+            found = db.prices_for_range(self._conn, start, end)
+            self.publisher.publish(f"price/{suffix}", mqtt.quarters_payload(found.quarters))
+        self.state.published_prices = key
 
 
 async def run_ticks(
@@ -493,6 +561,11 @@ async def _serve(
     zone = ZoneInfo(settings.location.timezone)
     listener = StoveListener(settings.stove, lambda reading: db.insert_stove_reading(conn, reading))
     controller = Controller(settings, conn, relay, listener.monitor)
+    commands = CommandHandler(
+        settings.mqtt.topic_prefix,
+        controller.set_force_run,
+        lambda: controller.request_replan("mqtt command"),
+    )
     try:
         async with asyncio.timeout(STARTUP_FETCH_TIMEOUT_SECONDS):
             await prices.fetch_if_due(conn, token, settings.tibber, zone)
@@ -502,11 +575,21 @@ async def _serve(
     jobs = [
         run_ticks(controller, settings.control.tick_seconds),
         run_listener(listener, settings.mqtt, credentials),
+        run_publisher(controller.publisher, settings.mqtt, credentials, commands),
         prices.run_scheduler(conn, token, settings.tibber, zone),
         run_poller(OpenMeteoProvider.from_settings(settings.location), conn, settings.weather),
     ]
     if settings.heating.enabled and (sensor := _open_heating_sensor(settings)):
-        jobs.append(run_sampler(sensor, conn, settings.heating))
+        jobs.append(
+            run_sampler(
+                sensor,
+                conn,
+                settings.heating,
+                on_sample=lambda reading: controller.publisher.publish(
+                    "heating/temperature", mqtt.heating_payload(reading)
+                ),
+            )
+        )
     tasks = [asyncio.create_task(job) for job in jobs]
     stopper = asyncio.create_task(stop.wait())
     loop = asyncio.get_running_loop()

@@ -63,14 +63,18 @@ async def test_the_sampler_stores_valid_readings_only(tmp_path: Path) -> None:
         if sleeps == 2:
             raise StopAsyncIteration
 
+    reported = []
     with closing(db.connect(tmp_path / "heatpump.sqlite3")) as conn:
         db.create_schema(conn)
         with pytest.raises(StopAsyncIteration):
-            await run_sampler(thermocouple, conn, HeatingSettings(), sleep)
+            await run_sampler(
+                thermocouple, conn, HeatingSettings(), sleep, on_sample=reported.append
+            )
         assert conn.execute("SELECT COUNT(*) FROM heating_readings").fetchone()[0] == 1
         latest = db.latest_heating_reading(conn)
     assert latest is not None
     assert (latest.temperature, latest.detail) == (25.0, 24.0)
+    assert [(r.temperature, r.detail) for r in reported] == [(25.0, 24.0)]  # not the faulty one
 
 
 def test_no_lock_file_means_no_service(tmp_path: Path) -> None:

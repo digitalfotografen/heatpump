@@ -6,7 +6,6 @@ from heatpump.cli import app
 runner = CliRunner()
 
 STUB_COMMANDS = [
-    ["mqtt", "publish-state"],
     ["service", "status"],
 ]
 

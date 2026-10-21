@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import sqlite3
 from contextlib import closing
@@ -390,7 +391,7 @@ async def test_a_failing_tick_releases_the_relay_and_the_loop_goes_on(
 ) -> None:
     relay = SpyRelay()
     r = rig(peaks=(), relay=relay)
-    r.controller._price_now = lambda now: 1 / 0  # type: ignore[method-assign]
+    r.controller._current_quarter = lambda now: 1 / 0  # type: ignore[method-assign]
     sleeps = 0
 
     async def sleep(_: float) -> None:
@@ -426,6 +427,7 @@ def service_parts(monkeypatch: pytest.MonkeyPatch) -> SpyRelay:
     monkeypatch.setattr(controller_module, "create_relay", lambda _: relay)
     monkeypatch.setattr(controller_module, "run_listener", forever)
     monkeypatch.setattr(controller_module, "run_poller", forever)
+    monkeypatch.setattr(controller_module, "run_publisher", forever)
     monkeypatch.setattr(controller_module.prices, "run_scheduler", forever)
 
     async def no_fetch(*_: object, **__: object) -> float:
@@ -472,3 +474,144 @@ async def test_a_second_instance_is_refused(tmp_path: Path, service_parts: SpyRe
     with ServiceLock(settings.control.lock_file), pytest.raises(ServiceAlreadyRunning):
         await run_service(settings)
     assert service_parts.calls == []  # the running instance's relay is left alone
+
+
+# --- MQTT publishing ---------------------------------------------------------
+
+
+def published(r: Rig) -> dict[str, list[str]]:
+    """Everything queued for the broker since the last call, payloads per topic."""
+    by_topic: dict[str, list[str]] = {}
+    for message in r.controller.publisher.drain():
+        by_topic.setdefault(message.topic, []).append(message.payload)
+    return by_topic
+
+
+def alert_reasons(r: Rig) -> list[str]:
+    """Alerts since the last call, without the outdoor-feed alert (these rigs have no weather)."""
+    alerts = published(r).get("heatpump/alert", [])
+    return [reason for a in alerts if (reason := json.loads(a)["reason"]) != "outdoor_stale"]
+
+
+def test_startup_publishes_the_plan_and_the_prices() -> None:
+    r = rig()
+    topics = published(r)
+    (plan,) = topics["heatpump/plan"]
+    assert json.loads(plan)["pauses"]
+    (today,) = topics["heatpump/price/today"]
+    (tomorrow,) = topics["heatpump/price/tomorrow"]
+    assert len(json.loads(today)) == 40  # the stored prices start at 14:00 local
+    assert len(json.loads(tomorrow)) == 96
+    assert json.loads(today)[0]["start"] == T0.isoformat()
+
+
+def test_prices_are_published_again_only_when_they_change() -> None:
+    r = rig()
+    published(r)
+    r.tick()
+    assert "heatpump/price/today" not in published(r)
+    db.upsert_prices(r.conn, [Quarter(T0 + 48 * 4 * QUARTER, 1.0)], fetched_at=r.now)
+    r.tick()
+    assert len(published(r)["heatpump/price/today"]) == 1
+
+
+def test_the_new_local_day_republishes_today_and_tomorrow() -> None:
+    r = rig()
+    published(r)
+    r.run_until(T0 + timedelta(hours=10), 20.0)  # 22:00 UTC is local midnight
+    topics = published(r)
+    assert len(topics["heatpump/price/today"]) == 1
+    assert len(topics["heatpump/price/tomorrow"]) == 1
+
+
+def test_the_state_goes_out_every_tick_and_the_relay_only_when_it_changes() -> None:
+    r = rig(peaks=())
+    published(r)
+    r.tick(20.0)
+    r.tick(20.0)
+    topics = published(r)
+    assert len(topics["heatpump/state"]) == 2
+    assert topics["heatpump/relay"] == ["running"]
+    r.tick(80.0)
+    topics = published(r)
+    assert topics["heatpump/relay"] == ["paused"]
+    state = json.loads(topics["heatpump/state"][-1])
+    assert state["mode"] == "paused_stove" and state["relay"] == "paused"
+    assert state["since"] == (T0 + 3 * MINUTE).isoformat()  # the mode began with this tick
+
+
+def test_the_state_keeps_the_time_the_mode_began() -> None:
+    r = rig(peaks=())
+    r.tick()
+    r.tick()
+    published(r)
+    r.tick()
+    assert json.loads(published(r)["heatpump/state"][-1])["since"] == (T0 + MINUTE).isoformat()
+
+
+def test_the_current_price_is_published_when_the_quarter_changes() -> None:
+    r = rig(peaks=())
+    published(r)
+    r.tick()
+    first = json.loads(published(r)["heatpump/price/current"][0])
+    assert first["energy"] == BASE_PRICE and first["slot_start"] == T0.isoformat()
+    r.run_until(T0 + 10 * MINUTE)
+    assert "heatpump/price/current" not in published(r)
+    r.run_until(T0 + 16 * MINUTE)
+    (second,) = published(r)["heatpump/price/current"]
+    assert json.loads(second)["slot_start"] == (T0 + QUARTER).isoformat()
+
+
+def test_a_missing_price_clears_the_current_price_topic() -> None:
+    r = rig(peaks=())
+    r.tick()
+    published(r)
+    r.conn.execute("DELETE FROM prices")
+    r.tick()
+    assert published(r)["heatpump/price/current"] == [""]
+
+
+def test_a_new_plan_is_published_after_every_planner_run() -> None:
+    r = rig()
+    published(r)
+    r.controller.request_replan("test")
+    r.tick()
+    assert len(published(r)["heatpump/plan"]) == 1
+
+
+def test_a_forced_release_publishes_one_alert() -> None:
+    r = rig()
+    r.controller.force_run = True
+    r.run_until(first_price_pause(r).start + 10 * MINUTE)
+    assert alert_reasons(r) == ["force_run"]
+
+
+def test_a_repeated_readback_mismatch_publishes_an_alert() -> None:
+    relay = FlakyRelay()
+    r = rig(peaks=(), relay=relay)
+    relay.stuck_at = False
+    r.tick(80.0)
+    relay.stuck_at = True
+    for _ in range(4):
+        r.tick(80.0)
+    assert alert_reasons(r) == ["readback_mismatch", "readback_mismatch_repeated"]
+
+
+def test_stale_feeds_publish_an_alert_when_they_go_stale_not_every_tick() -> None:
+    r = rig(peaks=())
+    published(r)
+    r.run_until(T0 + 12 * MINUTE, None)  # the stove feed goes silent; no outdoor reading either
+    reasons = [json.loads(a)["reason"] for a in published(r)["heatpump/alert"]]
+    assert sorted(reasons) == ["outdoor_stale", "stove_feed_stale"]
+    r.tick(20.0)  # the feed is back
+    r.run_until(r.now + 12 * MINUTE, None)
+    reasons = [json.loads(a)["reason"] for a in published(r)["heatpump/alert"]]
+    assert reasons == ["stove_feed_stale"]
+
+
+def test_the_commands_reach_the_controller() -> None:
+    r = rig()
+    r.controller.set_force_run(True)
+    assert r.controller.force_run
+    r.controller.set_force_run(False)
+    assert not r.controller.force_run
