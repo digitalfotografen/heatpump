@@ -23,6 +23,7 @@ SLOT_MINUTES = 15
 SLOT = timedelta(minutes=SLOT_MINUTES)
 WINDOW_SLOTS = 24 * 60 // SLOT_MINUTES
 SLOT_HOURS = SLOT_MINUTES / 60
+LOOKAHEAD = timedelta(hours=48)  # Tibber publishes today and tomorrow at most
 
 
 @dataclass(frozen=True)

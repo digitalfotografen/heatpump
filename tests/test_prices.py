@@ -8,6 +8,7 @@ import pytest
 from tibber.exceptions import FatalHttpExceptionError
 
 from heatpump import db, prices
+from heatpump.config import TibberSettings
 from heatpump.prices import PriceDataError
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -225,3 +226,75 @@ async def test_fetch_and_store_writes_quarters_and_returns_them(fake_tibber) -> 
     )
     assert len(stored) == 192
     assert db.latest_price_slot(conn) == stored[-1].start
+
+
+# --- scheduler ---------------------------------------------------------------
+
+
+def test_next_fetch_is_now_when_due() -> None:
+    now = datetime(2026, 10, 21, 8, tzinfo=ZONE)
+    assert prices.next_fetch_time(now, None, AFTER) == now
+
+
+def test_next_fetch_is_today_at_14_while_only_today_is_stored() -> None:
+    now = datetime(2026, 10, 21, 8, tzinfo=ZONE)
+    last = datetime(2026, 10, 21, 23, 45, tzinfo=ZONE)
+    assert prices.next_fetch_time(now, last, AFTER) == datetime(2026, 10, 21, 14, tzinfo=ZONE)
+
+
+def test_next_fetch_is_tomorrow_at_14_once_tomorrow_is_stored() -> None:
+    now = datetime(2026, 10, 21, 15, tzinfo=ZONE)
+    last = datetime(2026, 10, 22, 23, 45, tzinfo=ZONE)
+    assert prices.next_fetch_time(now, last, AFTER) == datetime(2026, 10, 22, 14, tzinfo=ZONE)
+
+
+class SchedulerRun:
+    """Drives ``run_scheduler`` for a few rounds with a fake clock and a fake fetch."""
+
+    def __init__(self, monkeypatch: pytest.MonkeyPatch, fail: bool = False) -> None:
+        self.conn = db.connect(":memory:")
+        db.create_schema(self.conn)
+        self.fetches = 0
+        self.sleeps: list[float] = []
+        self.fail = fail
+        monkeypatch.setattr(prices, "fetch_and_store", self.fetch_and_store)
+
+    async def fetch_and_store(self, conn, token, home_index, give_up_at, zone) -> list:
+        self.fetches += 1
+        if self.fail:
+            raise PriceDataError("no data")
+        start = datetime(2026, 10, 21, 0, tzinfo=ZONE)
+        quarters = [prices.Quarter(start + timedelta(minutes=15 * i), 1.0) for i in range(192)]
+        db.upsert_prices(conn, quarters, fetched_at=start)
+        return quarters
+
+    async def run(self, rounds: int) -> None:
+        async def sleep(seconds: float) -> None:
+            self.sleeps.append(seconds)
+            if len(self.sleeps) == rounds:
+                raise StopAsyncIteration
+
+        now = datetime(2026, 10, 21, 15, tzinfo=ZONE)
+        with pytest.raises(StopAsyncIteration):
+            await prices.run_scheduler(
+                self.conn, "token", TibberSettings(), ZONE, sleep, clock=lambda: now
+            )
+
+
+async def test_the_scheduler_fetches_once_when_due_and_then_just_checks(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run = SchedulerRun(monkeypatch)
+    await run.run(rounds=3)
+    assert run.fetches == 1
+    assert run.sleeps == [prices.SCHEDULER_CHECK_SECONDS] * 3
+
+
+async def test_a_failed_fetch_is_retried_later_not_every_minute(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    run = SchedulerRun(monkeypatch, fail=True)
+    await run.run(rounds=2)
+    assert run.fetches == 2
+    assert run.sleeps == [prices.FETCH_RETRY_SECONDS] * 2
+    assert "Price fetch failed" in caplog.text

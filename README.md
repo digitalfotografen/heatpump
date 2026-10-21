@@ -41,6 +41,17 @@ ssh pi@PI 'cd heatpump && uv sync --no-dev && uv run heatpump --help'
 
 Put the configuration in `/etc/heatpump/config.yaml` (start from `config.example.yaml`).
 
+### Running the controller by hand
+
+```sh
+set -a; . /etc/heatpump/env; set +a
+heatpump --config /etc/heatpump/config.yaml run        # foreground; Ctrl-C or SIGTERM releases the relay
+```
+
+While it runs, from another shell: `heatpump status [--json]`, `heatpump pauses`,
+`heatpump log --tail 20` and `heatpump export control_log --from 2026-10-21 --format csv`.
+`relay set` is refused while the service holds the lock file.
+
 ### As a service (from phase 11)
 
 `systemd/heatpump.service` runs `heatpump run --config /etc/heatpump/config.yaml` as user

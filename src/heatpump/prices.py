@@ -6,7 +6,7 @@ Only this module talks to Tibber. The planner reads the stored quarters from the
 import asyncio
 import logging
 import sqlite3
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
@@ -16,6 +16,7 @@ from tenacity import AsyncRetrying, RetryCallState, retry_if_exception_type
 from tibber.exceptions import HttpExceptionError, RetryableHttpExceptionError
 
 from heatpump import db
+from heatpump.config import TibberSettings
 from heatpump.models import Quarter
 
 logger = logging.getLogger(__name__)
@@ -24,6 +25,8 @@ USER_AGENT = "heatpump-controller"
 SLOT_MINUTES = 15
 BACKOFF_FIRST_SECONDS = 60
 BACKOFF_MAX_SECONDS = 32 * 60
+SCHEDULER_CHECK_SECONDS = 60
+FETCH_RETRY_SECONDS = 10 * 60
 
 PRICE_QUERY = """
 {
@@ -195,3 +198,56 @@ def should_fetch(now_local: datetime, latest_slot: datetime | None, fetch_after:
         return True
     tomorrow_missing = latest_slot.astimezone(now_local.tzinfo).date() <= now_local.date()
     return tomorrow_missing and now_local.time() >= fetch_after
+
+
+def next_fetch_time(
+    now_local: datetime, latest_slot: datetime | None, fetch_after: time
+) -> datetime:
+    """When the scheduler will next fetch: now if due, otherwise the next ``fetch_after``."""
+    if should_fetch(now_local, latest_slot, fetch_after):
+        return now_local
+    covers_tomorrow = latest_slot is not None and (
+        latest_slot.astimezone(now_local.tzinfo).date() > now_local.date()
+    )
+    day = now_local.date() + timedelta(days=1 if covers_tomorrow else 0)
+    return datetime.combine(day, fetch_after, tzinfo=now_local.tzinfo)
+
+
+async def fetch_if_due(
+    conn: sqlite3.Connection,
+    token: str,
+    settings: TibberSettings,
+    zone: ZoneInfo,
+    now: datetime | None = None,
+) -> float:
+    """Fetch if :func:`should_fetch` says so; return the seconds to wait before checking again.
+
+    A fetch that fails, or that leaves prices still due (tomorrow's are not published yet), is
+    retried after ``FETCH_RETRY_SECONDS`` so Tibber is not asked every minute.
+    """
+    after = settings.fetch_after_local_time
+    if not should_fetch(now or datetime.now(zone), db.latest_price_slot(conn), after):
+        return SCHEDULER_CHECK_SECONDS
+    try:
+        await fetch_and_store(
+            conn, token, settings.home_index, settings.fetch_give_up_local_time, zone
+        )
+    except (*FETCH_ERRORS, OSError) as error:
+        logger.warning("Price fetch failed: %s", error)
+        return FETCH_RETRY_SECONDS
+    due_again = should_fetch(now or datetime.now(zone), db.latest_price_slot(conn), after)
+    return FETCH_RETRY_SECONDS if due_again else SCHEDULER_CHECK_SECONDS
+
+
+async def run_scheduler(
+    conn: sqlite3.Connection,
+    token: str,
+    settings: TibberSettings,
+    zone: ZoneInfo,
+    sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+    clock: Callable[[], datetime] | None = None,
+) -> None:
+    """Fetch prices whenever they are due, forever; failures are logged, never raised."""
+    while True:
+        wait = await fetch_if_due(conn, token, settings, zone, clock() if clock else None)
+        await sleep(wait)

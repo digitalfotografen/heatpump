@@ -38,6 +38,10 @@ class Relay(Protocol):
         """Open the relay; what startup and shutdown call."""
         ...
 
+    def reinitialise(self) -> None:
+        """Forget the hardware setup so the next ``set`` configures the pin again."""
+        ...
+
 
 class DryRunRelay:
     """Remembers the state in memory and logs every change; for the dev machine and tests."""
@@ -55,6 +59,9 @@ class DryRunRelay:
 
     def release(self) -> None:
         self.set(False)
+
+    def reinitialise(self) -> None:
+        """Nothing to set up in memory."""
 
 
 class Mcp23017Relay:
@@ -87,6 +94,10 @@ class Mcp23017Relay:
 
     def release(self) -> None:
         self.set(False)
+
+    def reinitialise(self) -> None:
+        """Configure the pin again on the next ``set``, as after a read-back mismatch."""
+        self._configured = False
 
 
 def create_relay(settings: RelaySettings) -> Relay:

@@ -7,7 +7,7 @@ with plain comparisons.
 
 import json
 import sqlite3
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -404,9 +404,18 @@ def insert_control_log(conn: sqlite3.Connection, decision: ControlDecision) -> N
         )
 
 
+def latest_control_log(conn: sqlite3.Connection) -> ControlDecision | None:
+    rows = conn.execute("SELECT * FROM control_log ORDER BY ts DESC LIMIT 1")
+    return next(iter(_decisions(rows)), None)
+
+
 def control_log_since(conn: sqlite3.Connection, since: datetime) -> list[ControlDecision]:
     rows = conn.execute("SELECT * FROM control_log WHERE ts >= ? ORDER BY ts", (to_iso(since),))
-    return [
+    return list(_decisions(rows))
+
+
+def _decisions(rows: Iterable[sqlite3.Row]) -> Iterator[ControlDecision]:
+    return (
         ControlDecision(
             ts=from_iso(row["ts"]),
             mode=ControlMode(row["mode"]),
@@ -421,7 +430,29 @@ def control_log_since(conn: sqlite3.Connection, since: datetime) -> list[Control
             plan_id=row["plan_id"],
         )
         for row in rows
-    ]
+    )
+
+
+# --- export -----------------------------------------------------------------
+
+
+def rows_between(
+    conn: sqlite3.Connection, table: str, start: datetime | None, end: datetime | None
+) -> list[sqlite3.Row]:
+    """Rows of ``table`` whose time column lies in ``[start, end)``; open ends are unbounded.
+
+    :raises KeyError: if ``table`` is not one of :data:`TABLES`.
+    """
+    time_column = TABLES[table]  # the whitelist keeps table names out of injection reach
+    clauses, params = [], []
+    if start is not None:
+        clauses.append(f"{time_column} >= ?")
+        params.append(to_iso(start))
+    if end is not None:
+        clauses.append(f"{time_column} < ?")
+        params.append(to_iso(end))
+    where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
+    return conn.execute(f"SELECT * FROM {table}{where} ORDER BY {time_column}", params).fetchall()
 
 
 # --- summary ----------------------------------------------------------------

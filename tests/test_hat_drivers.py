@@ -110,6 +110,17 @@ def test_relay_raises_when_the_pin_does_not_follow() -> None:
         relay.set(True)
 
 
+def test_reinitialising_configures_the_pin_again_on_the_next_set() -> None:
+    smbus, bus = expander_bus()
+    relay = Mcp23017Relay(Mcp23017(bus, EXPANDER, "GPB0"))
+    relay.set(True)
+    smbus.writes.clear()
+    relay.reinitialise()
+    assert smbus.writes == []  # nothing happens until the next write
+    relay.set(False)
+    assert any(register == IODIR + 1 for _, register, _ in smbus.writes)
+
+
 def test_dry_run_relay_remembers_its_state() -> None:
     relay = DryRunRelay()
     assert not relay.read()

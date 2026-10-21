@@ -6,6 +6,8 @@ implemented, so ``--help`` already shows the whole surface. Only ``run`` and
 """
 
 import asyncio
+import csv
+import io
 import json
 import sqlite3
 import time as clock
@@ -22,6 +24,7 @@ from rich.console import Console
 from rich.table import Table
 
 from heatpump import budget, db, heating, planner, prices
+from heatpump import status as status_module
 from heatpump.config import (
     ConfigError,
     MissingSecretError,
@@ -30,11 +33,19 @@ from heatpump.config import (
     mqtt_credentials,
     tibber_token,
 )
+from heatpump.controller import run_service
 from heatpump.i2c import shared_bus
 from heatpump.logging_setup import setup_logging
 from heatpump.mcp9600 import Mcp9600NotFoundError
-from heatpump.models import Plan, Quarter, StoveReading, StoveState, TemperatureReading
-from heatpump.relay import RelayMismatch, create_relay, service_running
+from heatpump.models import (
+    ControlDecision,
+    Plan,
+    Quarter,
+    StoveReading,
+    StoveState,
+    TemperatureReading,
+)
+from heatpump.relay import RelayMismatch, ServiceAlreadyRunning, create_relay, service_running
 from heatpump.stove import StoveListener, run_listener
 from heatpump.weather import OpenMeteoProvider, WeatherError, fetch_and_store, is_stale
 
@@ -100,9 +111,17 @@ def not_implemented(phase: int) -> None:
 
 
 @app.command()
-def run() -> None:
+def run(ctx: typer.Context) -> None:
     """Run the controller service in the foreground (this is what systemd starts)."""
-    not_implemented(9)
+    settings = load_settings_or_exit(ctx)
+    try:
+        asyncio.run(run_service(settings))
+    except ServiceAlreadyRunning as error:
+        typer.echo(f"The service is already running: {error}", err=True)
+        raise typer.Exit(code=1) from error
+    except (MissingSecretError, OSError) as error:
+        typer.echo(f"Cannot start the service: {error}", err=True)
+        raise typer.Exit(code=1) from error
 
 
 @app.command()
@@ -223,34 +242,187 @@ def _watch_heating(settings: Settings, zone: ZoneInfo) -> None:
         typer.echo("Stopped.")
 
 
+DEFAULT_LOG_RANGE = timedelta(hours=24)
+DEFAULT_PAUSES_RANGE = timedelta(days=7)
+EXPORT_FORMATS = ("csv", "json")
+
+
+def _parse_moment(text: str | None, zone: ZoneInfo) -> datetime | None:
+    """A date or date-time as given on the command line; without a zone it is local time."""
+    if text is None:
+        return None
+    try:
+        moment = datetime.fromisoformat(text)
+    except ValueError as error:
+        typer.echo(
+            f"Not a date or time: {text!r} (use e.g. 2026-10-21 or 2026-10-21T14:30)", err=True
+        )
+        raise typer.Exit(code=1) from error
+    return moment.replace(tzinfo=zone) if moment.tzinfo is None else moment
+
+
 @app.command()
-def status(as_json: JsonOption = False) -> None:
+def status(ctx: typer.Context, as_json: JsonOption = False) -> None:
     """Show mode, relay, guard, stove, prices and pause budget on one screen."""
-    not_implemented(9)
+    settings = load_settings_or_exit(ctx)
+    with closing(_open_read_only(settings)) as connection:
+        report = status_module.collect(
+            connection,
+            settings,
+            datetime.now(UTC),
+            service_running(settings.control.lock_file),
+        )
+    if report is None:
+        typer.echo("No ticks logged yet; start the service with `heatpump run`.", err=True)
+        raise typer.Exit(code=1)
+    if as_json:
+        typer.echo(json.dumps(report.as_dict(), indent=2))
+        return
+    Console().print(_status_table(report, ZoneInfo(settings.location.timezone)))
+
+
+def _status_table(report: status_module.Status, zone: ZoneInfo) -> Table:
+    last = report.last
+    minutes = report.paused_24h
+    next_pause = (
+        f"{_local(report.next_pause.start, zone)} to {_local(report.next_pause.end, zone)}"
+        if report.next_pause
+        else "none planned"
+    )
+    since = int((report.now - report.mode_since).total_seconds() // 60)
+    rows = {
+        "Service": "running" if report.service_running else "[red]not running[/red]",
+        "Last tick": f"{_local(last.ts, zone)} ({int(report.tick_age.total_seconds())} s ago)",
+        "Mode": f"{last.mode} (for {since} min)",
+        "Relay": f"requested {_paused_text(last.relay_requested)}, "
+        f"actual {_paused_text(last.relay_actual)}",
+        "Guard": last.guard_reason or "-",
+        "Stove": f"{_number(last.stove_temp, ' °C')}, {last.stove_state or 'no state'}",
+        "Outdoor": _number(last.outdoor_temp, " °C"),
+        "Heating circuit": _number(last.heating_temp, " °C"),
+        "Price now": _number(last.price_now, " SEK/kWh", 2),
+        "Paused, last 24 h": f"price {minutes.price:.0f} min, stove {minutes.stove:.0f} min, "
+        f"total {minutes.total:.0f} min",
+        "Next price pause": next_pause,
+        "Next price fetch": _local(report.next_price_fetch, zone),
+    }
+    table = Table(show_header=False, title="heatpump")
+    for name, value in rows.items():
+        table.add_row(name, value)
+    return table
+
+
+def _paused_text(paused: bool | None) -> str:
+    return "unknown" if paused is None else ("paused" if paused else "running")
+
+
+def _number(value: float | None, unit: str, digits: int = 1) -> str:
+    return "-" if value is None else f"{value:.{digits}f}{unit}"
 
 
 @app.command()
-def pauses(since: SinceOption = None) -> None:
-    """List the recorded pauses."""
-    not_implemented(9)
+def pauses(ctx: typer.Context, since: SinceOption = None) -> None:
+    """List the recorded pauses (default: the last 7 days)."""
+    settings = load_settings_or_exit(ctx)
+    zone = ZoneInfo(settings.location.timezone)
+    now = datetime.now(UTC)
+    start = _parse_moment(since, zone) or now - DEFAULT_PAUSES_RANGE
+    with closing(_open_read_only(settings)) as connection:
+        events = db.pause_events_since(connection, start)
+    table = Table(title=f"Pauses since {_local(start, zone)}")
+    for heading in ("Kind", "Start (local)", "End (local)", "Minutes", "End reason"):
+        table.add_column(heading)
+    for event in events:
+        end = event.ended_at or now
+        table.add_row(
+            event.kind.value,
+            _local(event.started_at, zone),
+            _local(event.ended_at, zone) if event.ended_at else "open",
+            f"{(end - event.started_at).total_seconds() / 60:.0f}",
+            event.end_reason or "-",
+        )
+    Console().print(table)
 
 
 @app.command()
-def log(since: SinceOption = None, tail: Annotated[int | None, typer.Option()] = None) -> None:
-    """Show the control log, one line per tick."""
-    not_implemented(9)
+def log(
+    ctx: typer.Context,
+    since: SinceOption = None,
+    tail: Annotated[int | None, typer.Option(help="Only the last N ticks.")] = None,
+) -> None:
+    """Show the control log, one line per tick (default: the last 24 hours)."""
+    settings = load_settings_or_exit(ctx)
+    zone = ZoneInfo(settings.location.timezone)
+    start = _parse_moment(since, zone) or datetime.now(UTC) - DEFAULT_LOG_RANGE
+    with closing(_open_read_only(settings)) as connection:
+        ticks = db.control_log_since(connection, start)
+    if tail is not None:
+        ticks = ticks[-tail:] if tail > 0 else []
+    if not ticks:
+        typer.echo("No ticks logged in that range.", err=True)
+        raise typer.Exit(code=1)
+    for tick in ticks:
+        typer.echo(_log_line(tick, zone))
+
+
+def _log_line(tick: ControlDecision, zone: ZoneInfo) -> str:
+    local = tick.ts.astimezone(zone).strftime("%Y-%m-%d %H:%M")
+    relay = f"{_paused_text(tick.relay_requested)}/{_paused_text(tick.relay_actual)}"
+    price = "-" if tick.price_now is None else f"{tick.price_now:.2f}"
+    stove = "-" if tick.stove_temp is None else f"{tick.stove_temp:.0f}"
+    return (
+        f"{local}  {tick.mode:<12} relay {relay:<16} price {price:>6}  stove {stove:>4} "
+        f"{tick.stove_state or '-'}  {tick.guard_reason or ''}"
+    ).rstrip()
 
 
 @app.command()
 def export(
+    ctx: typer.Context,
     table: str,
     from_: Annotated[str | None, typer.Option("--from", help="Start of the range.")] = None,
-    to: Annotated[str | None, typer.Option(help="End of the range.")] = None,
+    to: Annotated[str | None, typer.Option(help="End of the range (exclusive).")] = None,
     format_: Annotated[str, typer.Option("--format", help="csv or json.")] = "csv",
     out: Annotated[Path | None, typer.Option(help="Output file (default: stdout).")] = None,
 ) -> None:
-    """Export a table for a time range."""
-    not_implemented(9)
+    """Export a table for a time range, for plots and analysis."""
+    settings = load_settings_or_exit(ctx)
+    if table not in db.TABLES:
+        typer.echo(f"Unknown table {table!r}; choose from {', '.join(db.TABLES)}.", err=True)
+        raise typer.Exit(code=1)
+    if format_ not in EXPORT_FORMATS:
+        typer.echo(f"Unknown format {format_!r}; choose csv or json.", err=True)
+        raise typer.Exit(code=1)
+    zone = ZoneInfo(settings.location.timezone)
+    with closing(_open_read_only(settings)) as connection:
+        rows = db.rows_between(
+            connection, table, _parse_moment(from_, zone), _parse_moment(to, zone)
+        )
+    text = _rows_as_json(rows) if format_ == "json" else _rows_as_csv(rows, table, settings)
+    if out is None:
+        typer.echo(text, nl=False)
+    else:
+        out.write_text(text, encoding="utf-8")
+        typer.echo(f"Wrote {len(rows)} rows to {out}", err=True)
+
+
+def _rows_as_json(rows: list[sqlite3.Row]) -> str:
+    return json.dumps([dict(row) for row in rows], indent=2) + "\n"
+
+
+def _rows_as_csv(rows: list[sqlite3.Row], table: str, settings: Settings) -> str:
+    """CSV with a header even for an empty range."""
+    header = list(rows[0].keys()) if rows else _column_names(table, settings)
+    buffer = io.StringIO()
+    writer = csv.writer(buffer, lineterminator="\n")
+    writer.writerow(header)
+    writer.writerows(tuple(row) for row in rows)
+    return buffer.getvalue()
+
+
+def _column_names(table: str, settings: Settings) -> list[str]:
+    with closing(_open_read_only(settings)) as connection:
+        return [row["name"] for row in connection.execute(f"PRAGMA table_info({table})")]
 
 
 @app.command()
@@ -403,9 +575,6 @@ def _prices_table(title: str, quarters: list[Quarter], zone: ZoneInfo) -> Table:
     return table
 
 
-PLAN_LOOKAHEAD = timedelta(hours=48)  # Tibber publishes today and tomorrow at most
-
-
 @plan_app.command("show")
 def plan_show(ctx: typer.Context) -> None:
     """Show the stored plan."""
@@ -425,7 +594,7 @@ def plan_now(ctx: typer.Context) -> None:
     now = datetime.now(UTC)
     first_slot = planner.floor_to_quarter(now)
     with closing(_open_read_only(settings)) as connection:
-        found = db.prices_for_range(connection, first_slot, first_slot + PLAN_LOOKAHEAD)
+        found = db.prices_for_range(connection, first_slot, first_slot + planner.LOOKAHEAD)
         history = db.pause_events_since(connection, now - budget.WINDOW)
     if not found.quarters:
         typer.echo("No prices stored from now on; run `heatpump prices fetch`.", err=True)
