@@ -52,17 +52,38 @@ While it runs, from another shell: `heatpump status [--json]`, `heatpump pauses`
 `heatpump log --tail 20` and `heatpump export control_log --from 2026-10-21 --format csv`.
 `relay set` is refused while the service holds the lock file.
 
-### As a service (from phase 11)
+### As a service
 
-`systemd/heatpump.service` runs `heatpump run --config /etc/heatpump/config.yaml` as user
-`pi` with `EnvironmentFile=/etc/heatpump/env`. Until phase 11 adds it and
-`heatpump service install`:
+The unit runs `heatpump --config /etc/heatpump/config.yaml run` as user `pi` with
+`EnvironmentFile=/etc/heatpump/env`, `Restart=always` and `RestartSec=10`. Its template is
+`src/heatpump/templates/heatpump.service`; `service install` fills in the user, the venv's
+`heatpump` script, the config path and the env file:
 
 ```sh
-sudo cp systemd/heatpump.service /etc/systemd/system/
+cd ~/heatpump
+sudo .venv/bin/heatpump --config /etc/heatpump/config.yaml service install   # --print to preview
 sudo systemctl daemon-reload && sudo systemctl enable --now heatpump
+heatpump service status
 journalctl -u heatpump -f
 ```
+
+Run `service install` again after moving the project or changing the config path.
+
+### Replaying a day
+
+`heatpump replay --date 2026-10-10` runs the planner over the stored prices of that local day,
+re-planning every `replan_interval_hours` with the pauses already taken as history, and prints
+the price pauses and the expected saving. It reads the database only; it never touches the
+relay, and stove pauses are not simulated.
+
+### Soak test (before phase 12)
+
+With the service running and the relay not wired to EXT, check after a few days:
+`heatpump pauses`, `heatpump log --since 2026-10-21`, `heatpump heating`, and
+`heatpump export control_log --from ... --format csv` for plots. Also try `sudo reboot`
+(the service must come back and `relay status` must say running right after boot) and stop the
+MQTT broker for a while (the stove pauses must end through the guard, with an alert, and resume
+once the broker is back).
 
 The relay is **not** connected to the heat pump's EXT input until the commissioning step in
 phase 12 of the plan.

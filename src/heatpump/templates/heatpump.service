@@ -1,0 +1,17 @@
+[Unit]
+Description=Heat pump price controller (Rego 637 EXT)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=$user
+ExecStart=$executable --config $config run
+EnvironmentFile=$env_file
+Restart=always
+RestartSec=10
+# Give the controller time to release the relay in its shutdown sequence.
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

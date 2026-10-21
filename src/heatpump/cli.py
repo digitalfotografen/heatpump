@@ -1,15 +1,16 @@
 """Command line interface: ``heatpump <command>``.
 
-Every command is a stub that names the phase of docs/plan.md in which it gets
-implemented, so ``--help`` already shows the whole surface. Only ``run`` and
-``relay set`` will ever change the relay.
+Only ``run`` and ``relay set`` ever change the relay.
 """
 
 import asyncio
 import csv
+import getpass
 import io
 import json
+import os
 import sqlite3
+import sys
 import time as clock
 from contextlib import closing
 from datetime import UTC, datetime, time, timedelta
@@ -23,7 +24,7 @@ from pydantic import ValidationError
 from rich.console import Console
 from rich.table import Table
 
-from heatpump import budget, db, heating, mqtt, planner, prices
+from heatpump import budget, db, heating, mqtt, planner, prices, replay, service
 from heatpump import status as status_module
 from heatpump.config import (
     ConfigError,
@@ -46,6 +47,7 @@ from heatpump.models import (
     TemperatureReading,
 )
 from heatpump.relay import RelayMismatch, ServiceAlreadyRunning, create_relay, service_running
+from heatpump.service import DEFAULT_CONFIG_PATH, DEFAULT_ENV_FILE, DEFAULT_UNIT_PATH, SERVICE_NAME
 from heatpump.stove import StoveListener, run_listener
 from heatpump.weather import OpenMeteoProvider, WeatherError, fetch_and_store, is_stale
 
@@ -102,12 +104,6 @@ def load_settings_or_exit(ctx: typer.Context) -> Settings:
         raise typer.Exit(code=1) from error
     setup_logging(settings.control.log_level)
     return settings
-
-
-def not_implemented(phase: int) -> None:
-    """Tell the user which phase implements the command and exit with code 1."""
-    typer.echo(f"Not implemented in this phase (planned for phase {phase}).", err=True)
-    raise typer.Exit(code=1)
 
 
 @app.command()
@@ -425,10 +421,42 @@ def _column_names(table: str, settings: Settings) -> list[str]:
         return [row["name"] for row in connection.execute(f"PRAGMA table_info({table})")]
 
 
-@app.command()
-def replay(date: Annotated[str, typer.Option(help="Day to replay, YYYY-MM-DD.")]) -> None:
-    """Run the planner over a stored day and print what would have happened."""
-    not_implemented(11)
+@app.command("replay")
+def replay_command(
+    ctx: typer.Context,
+    date: Annotated[
+        datetime, typer.Option(formats=["%Y-%m-%d"], help="Local day to replay, YYYY-MM-DD.")
+    ],
+) -> None:
+    """Run the planner over a stored day and print what would have happened (relay untouched)."""
+    settings = load_settings_or_exit(ctx)
+    zone = ZoneInfo(settings.location.timezone)
+    day = date.date()
+    day_start = datetime.combine(day, time(), tzinfo=zone)
+    day_end = datetime.combine(day + timedelta(days=1), time(), tzinfo=zone)
+    with closing(_open_read_only(settings)) as connection:
+        found = db.prices_for_range(connection, day_start, day_end + planner.LOOKAHEAD)
+    if not any(day_start <= quarter.start < day_end for quarter in found.quarters):
+        typer.echo(f"No prices stored for {day}; run `heatpump prices fetch`.", err=True)
+        raise typer.Exit(code=1)
+    try:
+        result = replay.replay_day(found.quarters, day_start, day_end, settings.price_pause)
+    except ValueError as error:
+        typer.echo(f"Cannot replay: {error}", err=True)
+        raise typer.Exit(code=1) from error
+    console = Console()
+    console.print(f"Replay of {day}: {len(result.pauses)} price pauses")
+    console.print(f"Expected saving: {result.saving_sek:.2f} SEK")
+    if result.pauses:
+        table = Table(title="Price pauses")
+        table.add_column("Start (local)")
+        table.add_column("End (local)")
+        table.add_column("Minutes", justify="right")
+        for pause in result.pauses:
+            table.add_row(
+                _local(pause.start, zone), _local(pause.end, zone), f"{pause.minutes:.0f}"
+            )
+        console.print(table)
 
 
 @db_app.command("init")
@@ -728,12 +756,40 @@ def mqtt_publish_state(ctx: typer.Context) -> None:
 
 
 @service_app.command("install")
-def service_install() -> None:
-    """Write or update the systemd unit from the template."""
-    not_implemented(11)
+def service_install(
+    ctx: typer.Context,
+    output: Annotated[Path, typer.Option(help="Where to write the unit.")] = DEFAULT_UNIT_PATH,
+    user: Annotated[str | None, typer.Option(help="User to run as (default: you).")] = None,
+    env_file: Annotated[Path, typer.Option(help="File with the secrets.")] = DEFAULT_ENV_FILE,
+    print_only: Annotated[
+        bool, typer.Option("--print", help="Print the unit; write nothing.")
+    ] = False,
+) -> None:
+    """Write or update the systemd unit from the template (needs sudo for /etc/systemd)."""
+    unit = service.render_unit(
+        user=user or os.environ.get("SUDO_USER") or getpass.getuser(),
+        executable=Path(sys.executable).parent / "heatpump",
+        config=(ctx.obj or DEFAULT_CONFIG_PATH).absolute(),
+        env_file=env_file,
+    )
+    if print_only:
+        typer.echo(unit, nl=False)
+        return
+    try:
+        output.write_text(unit, encoding="utf-8")
+    except OSError as error:
+        typer.echo(f"Cannot write {output}: {error}. Try again with sudo.", err=True)
+        raise typer.Exit(code=1) from error
+    typer.echo(f"Wrote {output}. Start it with:")
+    typer.echo(f"  sudo systemctl daemon-reload && sudo systemctl enable --now {SERVICE_NAME}")
 
 
 @service_app.command("status")
 def service_status() -> None:
     """Show ``systemctl status`` for the service."""
-    not_implemented(11)
+    try:
+        code = service.systemctl_status()
+    except FileNotFoundError as error:
+        typer.echo("systemctl not found; this is not a systemd machine.", err=True)
+        raise typer.Exit(code=1) from error
+    raise typer.Exit(code=code)
