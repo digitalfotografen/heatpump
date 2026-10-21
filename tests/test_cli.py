@@ -8,8 +8,6 @@ runner = CliRunner()
 STUB_COMMANDS = [
     ["run"],
     ["status"],
-    ["relay", "status"],
-    ["hat", "scan"],
     ["mqtt", "publish-state"],
     ["service", "status"],
 ]

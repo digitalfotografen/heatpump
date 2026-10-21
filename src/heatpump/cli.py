@@ -8,8 +8,10 @@ implemented, so ``--help`` already shows the whole surface. Only ``run`` and
 import asyncio
 import json
 import sqlite3
+import time as clock
 from contextlib import closing
 from datetime import UTC, datetime, time, timedelta
+from enum import StrEnum
 from pathlib import Path
 from typing import Annotated
 from zoneinfo import ZoneInfo
@@ -19,7 +21,7 @@ from pydantic import ValidationError
 from rich.console import Console
 from rich.table import Table
 
-from heatpump import budget, db, planner, prices
+from heatpump import budget, db, heating, planner, prices
 from heatpump.config import (
     ConfigError,
     MissingSecretError,
@@ -28,8 +30,11 @@ from heatpump.config import (
     mqtt_credentials,
     tibber_token,
 )
+from heatpump.i2c import shared_bus
 from heatpump.logging_setup import setup_logging
-from heatpump.models import Plan, Quarter, StoveReading, StoveState
+from heatpump.mcp9600 import Mcp9600NotFoundError
+from heatpump.models import Plan, Quarter, StoveReading, StoveState, TemperatureReading
+from heatpump.relay import RelayMismatch, create_relay, service_running
 from heatpump.stove import StoveListener, run_listener
 from heatpump.weather import OpenMeteoProvider, WeatherError, fetch_and_store, is_stale
 
@@ -174,10 +179,48 @@ def weather(
     )
 
 
-@app.command()
-def heating(watch: WatchOption = False) -> None:
-    """Show the latest heating-circuit temperature."""
-    not_implemented(7)
+HEATING_WATCH_INTERVAL_SECONDS = 1
+
+
+@app.command("heating")
+def heating_command(ctx: typer.Context, watch: WatchOption = False) -> None:
+    """Show the latest heating-circuit temperature; with --watch, sample the thermocouple live."""
+    settings = load_settings_or_exit(ctx)
+    zone = ZoneInfo(settings.location.timezone)
+    if watch:
+        _watch_heating(settings, zone)
+        return
+    with closing(_open_read_only(settings)) as connection:
+        reading = db.latest_heating_reading(connection)
+    if reading is None:
+        typer.echo("No heating-circuit readings stored; try `heatpump heating --watch`.", err=True)
+        raise typer.Exit(code=1)
+    age = int((datetime.now(UTC) - reading.ts).total_seconds())
+    typer.echo(f"{_heating_line(reading, zone)} ({age} s ago)")
+
+
+def _heating_line(reading: TemperatureReading, zone: ZoneInfo) -> str:
+    local = reading.ts.astimezone(zone).strftime("%Y-%m-%d %H:%M:%S")
+    return f"{local}  {reading.temperature:6.2f} °C  (cold junction {reading.detail:.1f} °C)"
+
+
+def _watch_heating(settings: Settings, zone: ZoneInfo) -> None:
+    """Print a live sample every second until interrupted; nothing is stored."""
+    if not settings.heating.enabled:
+        typer.echo("heating.enabled is false in the configuration.", err=True)
+        raise typer.Exit(code=1)
+    try:
+        sensor = heating.open_sensor(settings.heating)
+    except (OSError, Mcp9600NotFoundError) as error:
+        typer.echo(f"Cannot use the heating-circuit sensor: {error}", err=True)
+        raise typer.Exit(code=1) from error
+    try:
+        while True:
+            reading = heating.sample(sensor)
+            typer.echo(_heating_line(reading, zone) if reading else "no valid reading")
+            clock.sleep(HEATING_WATCH_INTERVAL_SECONDS)
+    except KeyboardInterrupt:
+        typer.echo("Stopped.")
 
 
 @app.command()
@@ -423,22 +466,76 @@ def _print_plan(plan: Plan, zone: ZoneInfo) -> None:
     console.print(table)
 
 
+class RelayState(StrEnum):
+    PAUSED = "paused"
+    RUNNING = "running"
+
+
 @relay_app.command("status")
-def relay_status() -> None:
-    """Show the relay driver and the current relay state."""
-    not_implemented(7)
+def relay_status(ctx: typer.Context) -> None:
+    """Show the relay driver and the current relay state; never changes the relay."""
+    settings = load_settings_or_exit(ctx)
+    try:
+        paused = create_relay(settings.relay).read()
+    except OSError as error:
+        typer.echo(f"Cannot read the relay: {error}", err=True)
+        raise typer.Exit(code=1) from error
+    relay = settings.relay
+    where = f" ({relay.i2c_address:#04x} {relay.pin})" if relay.driver == "mcp23017" else ""
+    typer.echo(f"Driver: {relay.driver}{where}")
+    typer.echo(f"Relay: {RelayState.PAUSED if paused else RelayState.RUNNING}")
+    if service_running(settings.control.lock_file):
+        typer.echo("The service is running.")
 
 
 @relay_app.command("set")
-def relay_set(state: Annotated[str, typer.Argument(help="paused or running")]) -> None:
+def relay_set(
+    ctx: typer.Context,
+    state: Annotated[RelayState, typer.Argument(help="paused or running")],
+) -> None:
     """Set the relay by hand for bench testing; refused while the service runs."""
-    not_implemented(7)
+    settings = load_settings_or_exit(ctx)
+    if service_running(settings.control.lock_file):
+        typer.echo("The service is running and owns the relay; stop it first.", err=True)
+        raise typer.Exit(code=1)
+    try:
+        create_relay(settings.relay).set(state is RelayState.PAUSED)
+    except (OSError, RelayMismatch) as error:
+        typer.echo(f"Setting the relay failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+    typer.echo(f"Relay set to {state}.")
 
 
 @hat_app.command("scan")
-def hat_scan() -> None:
+def hat_scan(ctx: typer.Context) -> None:
     """List the devices on the I2C bus with their expected roles."""
-    not_implemented(7)
+    settings = load_settings_or_exit(ctx)
+    expected = {
+        (settings.relay.i2c_bus, settings.relay.i2c_address): "MCP23017 (relay)",
+        (settings.heating.i2c_bus, settings.heating.i2c_address): "MCP9600 (heating circuit)",
+    }
+    table = Table(title="I2C devices")
+    table.add_column("Bus", justify="right")
+    table.add_column("Address")
+    table.add_column("Role")
+    missing = False
+    for bus_number in sorted({bus for bus, _ in expected}):
+        try:
+            found = shared_bus(bus_number).scan()
+        except OSError as error:
+            typer.echo(f"Cannot open I2C bus {bus_number}: {error}", err=True)
+            raise typer.Exit(code=1) from error
+        for address in found:
+            table.add_row(
+                str(bus_number), f"{address:#04x}", expected.get((bus_number, address), "other")
+            )
+        for (bus, address), role in expected.items():
+            if bus == bus_number and address not in found:
+                missing = True
+                table.add_row(str(bus), f"{address:#04x}", f"[red]{role}: NOT FOUND[/red]")
+    Console().print(table)
+    if missing:
+        raise typer.Exit(code=1)
 
 
 @mqtt_app.command("publish-state")
