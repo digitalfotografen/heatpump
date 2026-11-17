@@ -3,7 +3,7 @@
 # environment, never from this file; the *_env keys name the variables.
 
 location:
-  latitude: 59.33          # Stockholm, approximate: replace with the house position
+  latitude: 59.33          # Stockholm: replace with the house position
   longitude: 18.07
   timezone: Europe/Stockholm
 

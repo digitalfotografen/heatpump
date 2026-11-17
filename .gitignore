@@ -112,3 +112,7 @@ ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
 *.lnk
+
+# --- Local tooling ---
+.claude/
+Claude outputs/

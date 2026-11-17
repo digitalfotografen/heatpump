@@ -1,6 +1,6 @@
 # Heat pump price controller: implementation plan
 
-Repo: `heatpump`, deployed to the Raspberry Pi over ssh. Developed in PyCharm with a Claude Code agent; the agent works one phase at a time and **commits only after the developer has reviewed the phase**. Conventions (uv, YAML + pydantic config, typer CLI, SQLite, systemd service, readability rules) are copied from `mcp9600_logger/agents.md`; `fridge` is the reference for the Tibber client, planner/controller split and MQTT publishing.
+Deployed to the Raspberry Pi over ssh. Developed in PyCharm with a Claude Code agent; the agent works one phase at a time and **commits only after the developer has reviewed the phase**. Conventions (uv, YAML + pydantic config, typer CLI, SQLite, systemd service, readability rules) follow the developer's earlier Raspberry Pi projects.
 
 Each phase is sized for roughly one hour of agent work and ends with something runnable or testable.
 
@@ -67,7 +67,7 @@ Principles the agent must keep:
 
 ```yaml
 location:
-  latitude: 59.33      # Stockholm, verify
+  latitude: 59.33      # Stockholm: replace with the house position
   longitude: 18.07
   timezone: Europe/Stockholm
 
@@ -213,7 +213,7 @@ Conventions: subcommands grouped with typer sub-apps (`db`, `prices`, `plan`, `r
 
 `heatpump run` is a long-running foreground process managed by systemd on the Pi:
 
-- `systemd/heatpump.service`: `Type=simple`, `ExecStart=/home/pi/heatpump/.venv/bin/heatpump run --config /etc/heatpump/config.yaml`, `Restart=always`, `RestartSec=10`, `EnvironmentFile=/etc/heatpump/env` (Tibber token, MQTT credentials, mode 0600), `After=network-online.target`, `WantedBy=multi-user.target`. Runs as user `pi`, not root; `pi` must be in the `i2c` group.
+- `systemd/heatpump.service`: `Type=simple`, `ExecStart=/home/<user>/heatpump/.venv/bin/heatpump run --config /etc/heatpump/config.yaml`, `Restart=always`, `RestartSec=10`, `EnvironmentFile=/etc/heatpump/env` (Tibber token, MQTT credentials, mode 0600), `After=network-online.target`, `WantedBy=multi-user.target`. Runs as an ordinary user, not root; that user must be in the `i2c` group.
 - Startup order inside `run`: release relay → load config → open database (create schema if missing) → write lock file → start MQTT (publish `availability: online`, last will `offline`) → fetch prices if needed → first plan → start tasks (tick, stove subscriber, heating sampler, weather poller, price scheduler, command listener).
 - Shutdown on SIGTERM/SIGINT: cancel tasks, release relay, publish `offline`, remove lock file, close database. The relay is released in a `finally` so an exception on the way down cannot leave it closed.
 - Logging to stdout in a journald-friendly single-line format; `journalctl -u heatpump -f` is the log viewer. Log level from config.
@@ -225,12 +225,12 @@ Conventions: subcommands grouped with typer sub-apps (`db`, `prices`, `plan`, `r
 ### Phase 0: Repo scaffold
 - The repo is already `uv init`-ed with Python 3.13. Add dependencies with `uv add`: `pydantic`, `pyyaml`, `typer`, `rich`, `aiomqtt`, `pyTibber`, `tenacity`, `httpx`, `smbus2`; dev: `pytest`, `pytest-asyncio`, `ruff`. `smbus2` is pure Python and installs fine on the dev machine; it is only *opened* when a hardware driver is selected. Fill in the pyproject description.
 - On the Pi, `uv python install 3.13` if the system Python is older (uv manages the interpreter, so the Pi's apt Python does not matter).
-- Copy and adapt `agents.md` from `mcp9600_logger` (same conventions, same review-then-commit workflow). This plan is already at `docs/plan.md`.
+- Copy and adapt `agents.md` from the mcp9600_logger project (same conventions, same review-then-commit workflow). This plan is already at `docs/plan.md`.
 - `config.py`: pydantic models for the YAML above, `load_settings(path)`, env-var secrets.
 - `cli.py` skeleton: typer app with the sub-apps from §7 (`db`, `prices`, `plan`, `relay`, `hat`, `service`) and the global `--config` option; every command a stub that says "not implemented in this phase" so `--help` already shows the whole surface. Mirror the structure of the mcp9600_logger CLI.
 - Logging setup (stdout, systemd-friendly), `__main__.py`.
 - `README.md` with deploy steps: `rsync` to the Pi, `uv sync` there, `systemd/heatpump.service`.
-- Confirm on the Pi: `i2cdetect -y 1` shows `0x22` and `0x66` (plus `0x50`, the HAT EEPROM), and `pi` is in the `i2c` group.
+- Confirm on the Pi: `i2cdetect -y 1` shows `0x22` and `0x66` (plus `0x50`, the HAT EEPROM), and the service user is in the `i2c` group.
 - **Done when:** `uv run heatpump --help` works locally and on the Pi; `pytest` runs (one config test).
 
 ### Phase 1: Models and database
@@ -241,7 +241,7 @@ Conventions: subcommands grouped with typer sub-apps (`db`, `prices`, `plan`, `r
 - **Done when:** schema creates on the Pi at the configured path; tests pass.
 
 ### Phase 2: Tibber prices
-- `prices.py`: `fetch_prices(token)` with pyTibber (`priceInfo`, `resolution: QUARTER_HOURLY`, today + tomorrow); map to `prices` rows. Study `fridge` for the client pattern but request quarters.
+- `prices.py`: `fetch_prices(token)` with pyTibber (`priceInfo`, `resolution: QUARTER_HOURLY`, today + tomorrow); map to `prices` rows. Request quarter-hour resolution.
 - `tenacity` retry: exponential backoff 1 min → 32 min, stop at `fetch_give_up_local_time`, retry only on network/API errors.
 - `should_fetch(now_local, latest_slot_in_db)`: true at startup if today's quarters are missing, and after 14:00 if tomorrow's are missing.
 - CLI: `prices fetch [--show]`, `prices show [--date]` (rich table in local time).
@@ -261,7 +261,7 @@ Conventions: subcommands grouped with typer sub-apps (`db`, `prices`, `plan`, `r
 - **Done when:** `heatpump plan now` on the Pi shows a sensible plan for tomorrow.
 
 ### Phase 5: Stove monitor
-- Check the payload format in `mcp9600_logger` (topic, JSON fields, availability values) and mirror it.
+- Check the payload format in the mcp9600_logger project (topic, JSON fields, availability values) and mirror it.
 - `stove.py`: aiomqtt subscriber task; `StoveMonitor` with `update(temperature, ts)` and `state(now)` implementing the hysteresis (`burning` at ≥ 50, `cold` at ≤ 40) and staleness (`stale` after 300 s or availability offline). Stores every reading.
 - CLI: `stove [--watch]`.
 - Tests: hysteresis sequence, stale → cold handling, out-of-order timestamps ignored.
@@ -269,7 +269,7 @@ Conventions: subcommands grouped with typer sub-apps (`db`, `prices`, `plan`, `r
 
 ### Phase 6: Outdoor temperature
 - `weather.py`: Open-Meteo `GET /v1/forecast?latitude&longitude&current=temperature_2m&timezone=UTC` with httpx, every 30 min, stored in `outdoor_readings`; stale after 3 h is only informational in this phase.
-- Keep a `WeatherProvider` protocol so Trafikverket or the developer's own sensor via MQTT can replace it later.
+- Keep a `WeatherProvider` protocol so Trafikverket or an own sensor via MQTT can replace it later.
 - Optional, if time allows: `max_minutes` for price pauses interpolated from a small `(outdoor °C → minutes)` table in config, default off.
 - CLI: `weather [--fetch]`.
 - **Done when:** `heatpump weather --fetch` prints the outdoor temperature on the Pi.
@@ -277,7 +277,7 @@ Conventions: subcommands grouped with typer sub-apps (`db`, `prices`, `plan`, `r
 ### Phase 7: HAT drivers (relay and heating-circuit thermocouple)
 - `i2c.py`: open the bus once (`smbus2.SMBus`), `read_register` / `write_register` helpers, a lock so the relay and the MCP9600 never interleave a transaction.
 - `mcp23017.py`: configure GPB0 as output with everything else untouched (read-modify-write of IODIRB), `set_pin(high)` writes OLATB, `read_pin()` reads GPIOB. Document the register map at the top of the file.
-- `mcp9600.py`: port the driver from `mcp9600_logger` (same chip, same HAT); hot-junction temperature, cold-junction, status/open-circuit flag.
+- `mcp9600.py`: port the driver from the mcp9600_logger project (same chip, same HAT); hot-junction temperature, cold-junction, status/open-circuit flag.
 - `relay.py`: `Relay` protocol (`set(paused: bool)`, `read() -> bool`, `release()`), `DryRunRelay` (in-memory, logs every change) and `Mcp23017Relay` (write, then read back; raise `RelayMismatch` if they differ). `release()` is what startup and shutdown call.
 - `heating.py`: `HeatingSampler` task, one reading per `sample_interval_seconds` into `heating_readings`; an open-circuit flag is logged, not stored as a temperature.
 - CLI: `hat scan`, `relay status`, `relay set paused|running` (refuses while the lock file exists), `heating [--watch]`.

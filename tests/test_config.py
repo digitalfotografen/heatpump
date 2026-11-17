@@ -74,10 +74,10 @@ def test_resolve_prefers_argument_then_env(tmp_path: Path, monkeypatch: pytest.M
 
 
 def test_secrets_come_from_the_environment(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("MQTT_USER", "pi")
+    monkeypatch.setenv("MQTT_USER", "heatpump")
     monkeypatch.setenv("MQTT_PASSWORD", "hunter2")
-    assert read_secret("MQTT_USER") == "pi"
-    assert mqtt_credentials(Settings()) == ("pi", "hunter2")
+    assert read_secret("MQTT_USER") == "heatpump"
+    assert mqtt_credentials(Settings()) == ("heatpump", "hunter2")
 
 
 def test_missing_secret_raises(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -3,6 +3,8 @@ name = "heatpump"
 version = "0.1.0"
 description = "Heat pump price controller: pauses a Rego 637 through its EXT input at expensive electricity prices"
 readme = "README.md"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
 authors = [
     { name = "Ulrik Södergren", email = "ulrik@digitalfotografen.se" }
 ]
